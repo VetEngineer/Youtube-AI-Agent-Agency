@@ -1,0 +1,27 @@
+{
+  "name": "youtube-ai-agent-agency",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "parcel index.html",
+    "build": "parcel build index.html"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VetEngineer/Youtube-AI-Agent-Agency.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/VetEngineer/Youtube-AI-Agent-Agency/issues"
+  },
+  "homepage": "https://github.com/VetEngineer/Youtube-AI-Agent-Agency#readme",
+  "devDependencies": {
+    "parcel": "^2.16.3"
+  },
+  "dependencies": {
+    "lodash": "^4.17.20"
+  }
+}
