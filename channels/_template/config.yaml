@@ -1,0 +1,18 @@
+# 채널 기본 설정 템플릿
+# 새 채널 추가 시 이 파일을 복사하여 수정하세요.
+
+channel:
+  name: ""
+  youtube_channel_id: ""
+  category: ""
+  language: "ko"
+
+seo:
+  primary_keywords: []
+  secondary_keywords: []
+
+editing:
+  intro_template: ""
+  outro_template: ""
+  subtitle_style: "default"
+  bgm_volume: 0.15

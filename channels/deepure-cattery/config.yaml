@@ -1,0 +1,23 @@
+# 딥퓨어캐터리 채널 설정
+
+channel:
+  name: "딥퓨어캐터리"
+  youtube_channel_id: ""
+  category: "pets"
+  language: "ko"
+
+seo:
+  primary_keywords:
+    - "고양이 브리더"
+    - "고양이 분양"
+    - "딥퓨어캐터리"
+  secondary_keywords:
+    - "고양이 건강"
+    - "고양이 묘종"
+    - "고양이 키우기"
+
+editing:
+  intro_template: ""
+  outro_template: ""
+  subtitle_style: "soft"
+  bgm_volume: 0.12
