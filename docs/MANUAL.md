@@ -5,14 +5,16 @@
 1. [빠른 시작](#1-빠른-시작)
 2. [CLI 사용법](#2-cli-사용법)
 3. [API 서버](#3-api-서버)
-4. [채널 관리](#4-채널-관리)
-5. [Docker 실행](#5-docker-실행)
-6. [Makefile 명령어 레퍼런스](#6-makefile-명령어-레퍼런스)
-7. [프로젝트 구조](#7-프로젝트-구조)
-8. [환경변수 레퍼런스](#8-환경변수-레퍼런스)
-9. [에이전트 아키텍처 상세](#9-에이전트-아키텍처-상세)
-10. [트러블슈팅](#10-트러블슈팅)
-11. [FAQ](#11-faq)
+4. [인증 및 권한](#4-인증-및-권한)
+5. [채널 관리](#5-채널-관리)
+6. [데이터베이스 및 마이그레이션](#6-데이터베이스-및-마이그레이션)
+7. [Docker 실행](#7-docker-실행)
+8. [Makefile 명령어 레퍼런스](#8-makefile-명령어-레퍼런스)
+9. [프로젝트 구조](#9-프로젝트-구조)
+10. [환경변수 레퍼런스](#10-환경변수-레퍼런스)
+11. [에이전트 아키텍처 상세](#11-에이전트-아키텍처-상세)
+12. [트러블슈팅](#12-트러블슈팅)
+13. [FAQ](#13-faq)
 
 ---
 
@@ -158,6 +160,20 @@ uv run uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 서버가 시작되면 `http://localhost:8000`에서 접근 가능합니다.
 Swagger UI 문서: `http://localhost:8000/docs`
 
+### 인증
+
+API 서버는 API 키 기반 인증을 지원합니다. 개발 환경에서는 `DISABLE_AUTH=true`로 비활성화할 수 있습니다.
+
+```bash
+# API 키를 헤더로 전달
+curl -H "X-API-Key: yaa_xxxxx..." http://localhost:8000/api/v1/channels/
+
+# 또는 쿼리 파라미터로 전달
+curl http://localhost:8000/api/v1/channels/?api_key=yaa_xxxxx...
+```
+
+자세한 인증 설정은 [인증 및 권한](#4-인증-및-권한) 섹션을 참고하세요.
+
 ### 엔드포인트
 
 #### GET /api/v1/health
@@ -291,9 +307,250 @@ curl http://localhost:8000/api/v1/status/550e8400-e29b-41d4-a716-446655440000
 | `completed` | 성공적으로 완료 |
 | `failed` | 에러로 실패 |
 
+#### GET /api/v1/pipeline/runs
+
+파이프라인 실행 이력을 조회합니다. 필터링 및 페이지네이션을 지원합니다.
+
+```bash
+# 전체 조회
+curl http://localhost:8000/api/v1/pipeline/runs
+
+# 채널별 필터링
+curl "http://localhost:8000/api/v1/pipeline/runs?channel_id=deepure-cattery"
+
+# 상태 필터링 + 페이지네이션
+curl "http://localhost:8000/api/v1/pipeline/runs?status=completed&limit=10&offset=0"
+```
+
+**쿼리 파라미터:**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|----------|------|--------|------|
+| `channel_id` | string | - | 채널 ID 필터 |
+| `status` | string | - | 상태 필터 (pending/running/completed/failed) |
+| `limit` | int | 20 | 페이지당 결과 수 (1~100) |
+| `offset` | int | 0 | 건너뛸 결과 수 |
+
+**응답:**
+
+```json
+{
+  "runs": [
+    {
+      "run_id": "550e8400-...",
+      "channel_id": "deepure-cattery",
+      "topic": "고양이 건강 관리",
+      "status": "completed",
+      "dry_run": true,
+      "created_at": "2025-01-15T10:30:00",
+      "completed_at": "2025-01-15T10:35:00"
+    }
+  ],
+  "total": 1,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+#### POST /api/v1/channels/
+
+새 채널을 생성합니다. **admin 스코프 필요.**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/channels/ \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: yaa_xxxxx..." \
+  -d '{
+    "channel_id": "new-channel",
+    "name": "새 채널",
+    "category": "tech"
+  }'
+```
+
+**요청 본문:**
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `channel_id` | string | O | 채널 ID (영문, 숫자, 하이픈, 언더스코어) |
+| `name` | string | O | 채널명 |
+| `category` | string | X | 카테고리 (기본값: `"general"`) |
+| `description` | string | X | 설명 (기본값: `""`) |
+
+**응답 (201):**
+
+```json
+{
+  "channel_id": "new-channel",
+  "name": "새 채널",
+  "category": "tech",
+  "has_brand_guide": false
+}
+```
+
+**에러:** 이미 존재하는 채널 ID (409), 잘못된 ID 형식 (422)
+
+#### PATCH /api/v1/channels/{channel_id}
+
+채널 설정을 수정합니다. **admin 스코프 필요.**
+
+```bash
+curl -X PATCH http://localhost:8000/api/v1/channels/deepure-cattery \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: yaa_xxxxx..." \
+  -d '{"name": "수정된 채널명", "category": "pets"}'
+```
+
+**요청 본문:** `name`, `category`, `description` 중 최소 하나 필요
+
+#### DELETE /api/v1/channels/{channel_id}
+
+채널을 삭제합니다. **admin 스코프 필요.**
+
+```bash
+curl -X DELETE http://localhost:8000/api/v1/channels/old-channel \
+  -H "X-API-Key: yaa_xxxxx..."
+```
+
+#### POST /api/v1/admin/api-keys
+
+새 API 키를 생성합니다. **admin 스코프 필요.**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/admin/api-keys \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: yaa_xxxxx..." \
+  -d '{"name": "프론트엔드 키", "scopes": ["read", "write"]}'
+```
+
+**요청 본문:**
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `name` | string | O | 키 이름 |
+| `scopes` | string[] | X | 권한 (기본값: `["read", "write"]`) |
+| `expires_days` | int | X | 만료일 (1~365일) |
+
+**응답 (201):**
+
+```json
+{
+  "api_key": "yaa_xxxxxxxxxxxxxxxx",
+  "key_id": "key-uuid-...",
+  "name": "프론트엔드 키",
+  "scopes": ["read", "write"],
+  "created_at": "2025-01-15T10:00:00",
+  "expires_at": null
+}
+```
+
+> **주의:** `api_key` 값은 생성 시에만 반환됩니다. 분실 시 재발급해야 합니다.
+
+#### GET /api/v1/admin/api-keys
+
+API 키 목록을 조회합니다. **admin 스코프 필요.**
+
+```bash
+# 활성 키만 조회
+curl http://localhost:8000/api/v1/admin/api-keys \
+  -H "X-API-Key: yaa_xxxxx..."
+
+# 비활성 키 포함
+curl "http://localhost:8000/api/v1/admin/api-keys?include_inactive=true" \
+  -H "X-API-Key: yaa_xxxxx..."
+```
+
+#### DELETE /api/v1/admin/api-keys/{key_id}
+
+API 키를 비활성화합니다. **admin 스코프 필요.**
+
+```bash
+curl -X DELETE http://localhost:8000/api/v1/admin/api-keys/{key_id} \
+  -H "X-API-Key: yaa_xxxxx..."
+```
+
+#### GET /api/v1/admin/audit-logs
+
+감사 로그를 조회합니다. **admin 스코프 필요.**
+
+```bash
+# 전체 조회
+curl http://localhost:8000/api/v1/admin/audit-logs \
+  -H "X-API-Key: yaa_xxxxx..."
+
+# 필터링
+curl "http://localhost:8000/api/v1/admin/audit-logs?method=POST&limit=50" \
+  -H "X-API-Key: yaa_xxxxx..."
+```
+
+**쿼리 파라미터:**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|----------|------|--------|------|
+| `api_key_id` | string | - | API 키 ID 필터 |
+| `method` | string | - | HTTP 메서드 필터 (GET/POST/...) |
+| `limit` | int | 100 | 페이지당 결과 수 (1~1000) |
+| `offset` | int | 0 | 건너뛸 결과 수 |
+
 ---
 
-## 4. 채널 관리
+## 4. 인증 및 권한
+
+### API 키 인증
+
+시스템은 SHA-256 해싱 기반 API 키 인증을 사용합니다. API 키는 `yaa_` 접두사로 시작합니다.
+
+### 인증 방법
+
+API 키는 두 가지 방법으로 전달할 수 있습니다:
+
+1. **HTTP 헤더** (권장):
+   ```bash
+   curl -H "X-API-Key: yaa_xxxxx..." http://localhost:8000/api/v1/channels/
+   ```
+
+2. **쿼리 파라미터**:
+   ```bash
+   curl "http://localhost:8000/api/v1/channels/?api_key=yaa_xxxxx..."
+   ```
+
+### 권한 스코프
+
+| 스코프 | 설명 | 접근 가능 엔드포인트 |
+|--------|------|---------------------|
+| `read` | 읽기 전용 | GET 엔드포인트 |
+| `write` | 읽기/쓰기 | GET, POST 엔드포인트 |
+| `admin` | 관리자 | 모든 엔드포인트 (API 키 관리, 감사 로그 포함) |
+
+### 개발 모드
+
+개발 환경에서는 인증을 비활성화할 수 있습니다:
+
+```bash
+# .env 파일에서
+DISABLE_AUTH=true
+```
+
+### 첫 API 키 생성
+
+인증이 비활성화된 상태에서 첫 admin 키를 생성합니다:
+
+```bash
+# 1. DISABLE_AUTH=true 상태에서 서버 실행
+make server
+
+# 2. admin 키 생성
+curl -X POST http://localhost:8000/api/v1/admin/api-keys \
+  -H "Content-Type: application/json" \
+  -d '{"name": "관리자 키", "scopes": ["read", "write", "admin"]}'
+
+# 3. 응답의 api_key 값을 안전하게 저장
+
+# 4. .env에서 DISABLE_AUTH=false로 변경
+```
+
+---
+
+## 5. 채널 관리
 
 ### 채널 디렉토리 구조
 
@@ -414,9 +671,70 @@ competitors:                     # 경쟁사 분석
    youtube-agent run --channel my-new-channel --topic "첫 번째 주제" --dry-run
    ```
 
+### API를 통한 채널 관리
+
+CLI 외에 REST API로도 채널을 관리할 수 있습니다:
+
+```bash
+# 채널 목록 조회
+curl http://localhost:8000/api/v1/channels/
+
+# 채널 생성 (admin 권한 필요)
+curl -X POST http://localhost:8000/api/v1/channels/ \
+  -H "Content-Type: application/json" \
+  -d '{"channel_id": "new-channel", "name": "새 채널", "category": "tech"}'
+
+# 채널 수정
+curl -X PATCH http://localhost:8000/api/v1/channels/new-channel \
+  -H "Content-Type: application/json" \
+  -d '{"name": "수정된 이름"}'
+
+# 채널 삭제
+curl -X DELETE http://localhost:8000/api/v1/channels/new-channel
+```
+
 ---
 
-## 5. Docker 실행
+## 6. 데이터베이스 및 마이그레이션
+
+### 데이터베이스
+
+시스템은 SQLAlchemy 2.0 async를 사용합니다.
+
+| 환경 | 데이터베이스 | URL 형식 |
+|------|------------|----------|
+| 개발 | SQLite | `sqlite+aiosqlite:///./data/agency.db` |
+| Docker | PostgreSQL 16 | `postgresql+asyncpg://agency:password@db:5432/youtube_agency` |
+
+### Alembic 마이그레이션
+
+DB 스키마 변경 시 Alembic 마이그레이션을 사용합니다.
+
+```bash
+# 현재 스키마로 DB 업그레이드
+make db-upgrade
+
+# 새 마이그레이션 생성 (모델 변경 후)
+make db-migrate msg="Add new column"
+
+# 한 단계 롤백
+make db-downgrade
+
+# 마이그레이션 이력 확인
+make db-history
+```
+
+### 테이블 구조
+
+| 테이블 | 설명 |
+|--------|------|
+| `pipeline_runs` | 파이프라인 실행 이력 (상태, 결과, 에러) |
+| `api_keys` | API 키 (해시, 스코프, 활성 상태) |
+| `audit_logs` | 감사 로그 (요청 메서드, 경로, 응답 코드, 소요 시간) |
+
+---
+
+## 7. Docker 실행
 
 ### 이미지 빌드
 
@@ -458,7 +776,7 @@ Docker 컨테이너는 30초 간격으로 `/api/v1/health` 엔드포인트를 �
 
 ---
 
-## 6. Makefile 명령어 레퍼런스
+## 8. Makefile 명령어 레퍼런스
 
 ```bash
 make help    # 사용 가능한 명령어 목록
@@ -480,10 +798,14 @@ make help    # 사용 가능한 명령어 목록
 | `make docker-up` | Docker Compose 시작 |
 | `make docker-down` | Docker Compose 종료 |
 | `make docker-logs` | Docker 로그 확인 |
+| `make db-migrate msg="설명"` | 새 Alembic 마이그레이션 생성 |
+| `make db-upgrade` | DB 최신 스키마로 업그레이드 |
+| `make db-downgrade` | DB 한 단계 롤백 |
+| `make db-history` | 마이그레이션 이력 확인 |
 
 ---
 
-## 7. 프로젝트 구조
+## 9. 프로젝트 구조
 
 ```
 Youtube-AI-Agent-Agency/
@@ -528,14 +850,24 @@ Youtube-AI-Agent-Agency/
 │   │   │   ├── agent.py
 │   │   │   ├── analytics.py          # YouTube Analytics API
 │   │   │   └── report_gen.py         # 리포트 생성
+│   │   ├── database/                  # 데이터 영속화
+│   │   │   ├── engine.py             # 비동기 세션 팩토리
+│   │   │   ├── models.py            # SQLAlchemy ORM 모델
+│   │   │   └── repositories.py      # Repository 패턴 (CRUD)
 │   │   └── api/                       # FastAPI REST API
 │   │       ├── main.py               # 앱 팩토리
+│   │       ├── auth.py               # API 키 인증 + 스코프 검증
+│   │       ├── middleware.py          # 감사 로그 + Rate Limiting
 │   │       ├── schemas.py            # Pydantic 스키마
 │   │       ├── dependencies.py       # 의존성 주입
 │   │       └── routes/               # 엔드포인트
-│   │           ├── pipeline.py       # 파이프라인 실행
-│   │           ├── channels.py       # 채널 관리
+│   │           ├── admin.py          # API 키 관리 + 감사 로그
+│   │           ├── pipeline.py       # 파이프라인 실행 + 이력
+│   │           ├── channels.py       # 채널 CRUD
 │   │           └── status.py         # 상태 조회 + 헬스체크
+│   ├── alembic/                       # DB 마이그레이션
+│   │   ├── env.py                    # 마이그레이션 환경
+│   │   └── versions/                 # 마이그레이션 파일
 │   └── tests/                         # 테스트
 ├── channels/                           # 채널별 YAML 설정
 ├── docs/                               # 프로젝트 문서
@@ -555,7 +887,7 @@ Brand Research → Script Writing → SEO Optimization → Media Generation → 
 
 ---
 
-## 8. 환경변수 레퍼런스
+## 10. 환경변수 레퍼런스
 
 `.env.example` 파일을 `.env`로 복사한 후 실제 값을 입력합니다.
 
@@ -580,6 +912,12 @@ cp .env.example .env
 | `YOUTUBE_CLIENT_SECRET` | YouTube API OAuth 시크릿 | - |
 | `CHANNELS_DIR` | 채널 설정 디렉토리 경로 | `./channels` |
 | `LOG_LEVEL` | 로깅 레벨 | `INFO` |
+| `DATABASE_URL` | 데이터베이스 URL | `sqlite+aiosqlite:///./data/agency.db` |
+| `DISABLE_AUTH` | 인증 비활성화 (개발용) | `true` |
+| `RATE_LIMIT_PER_MINUTE` | 일반 Rate Limit | `60` |
+| `RATE_LIMIT_PIPELINE_PER_MINUTE` | 파이프라인 Rate Limit | `10` |
+| `CORS_ORIGINS` | CORS 허용 origin (쉼표 구분) | `http://localhost:3000` |
+| `DB_PASSWORD` | Docker PostgreSQL 비밀번호 | `localdevpassword` |
 
 ### API 키 발급 안내
 
@@ -593,7 +931,7 @@ cp .env.example .env
 
 ---
 
-## 9. 에이전트 아키텍처 상세
+## 11. 에이전트 아키텍처 상세
 
 ### 파이프라인 아키텍처
 
@@ -729,7 +1067,7 @@ DRAFT → REVIEW → APPROVED → PUBLISHED
 
 ---
 
-## 10. 트러블슈팅
+## 12. 트러블슈팅
 
 ### 설치 관련
 
@@ -881,7 +1219,7 @@ youtube-agent run --channel my-channel --topic "주제"
 
 ---
 
-## 11. FAQ
+## 13. FAQ
 
 ### 일반
 
@@ -925,7 +1263,7 @@ A: 가능하지만 권장하지 않습니다. 각 채널의 특성에 맞는 독
 
 **Q: API 서버에 인증이 있나요?**
 
-A: 현재 버전에는 API 인증이 구현되어 있지 않습니다. 프로덕션 배포 시에는 별도의 인증/인가 레이어를 추가해야 합니다.
+A: 네. SHA-256 기반 API 키 인증이 구현되어 있습니다. `X-API-Key` 헤더 또는 `api_key` 쿼리 파라미터로 인증합니다. 개발 환경에서는 `DISABLE_AUTH=true`로 비활성화할 수 있습니다. 자세한 내용은 [인증 및 권한](#4-인증-및-권한) 섹션을 참고하세요.
 
 **Q: API로 파이프라인 실행 결과를 실시간으로 받을 수 있나요?**
 

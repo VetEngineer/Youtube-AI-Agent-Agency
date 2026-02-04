@@ -5,18 +5,64 @@
 **Author/Owner:** VetEngineer
 **License:** MIT
 
-This project appears to be the foundational repository for an AI Agent Agency system, likely focused on YouTube automation, analysis, or content creation (inferred from the directory name).
+YouTube 콘텐츠 자동 생성 파이프라인 시스템. LangGraph 기반 6단계 AI 에이전트가 브랜드 리서치부터 YouTube 업로드까지 전체 워크플로우를 자동화합니다.
 
 ## Current Status
-As of the latest analysis, the repository is in an **initialization phase**.
-- It contains a `LICENSE` file.
-- It does not yet contain source code, configuration files, or detailed documentation.
+**Phase 5 완료** - 핵심 기능 구현 완료
 
-## Development Conventions (Proposed)
-Since specific conventions are not yet established in code, the following are recommended for this type of project:
-- **Language:** Likely Python (for AI/ML capabilities) or TypeScript/Node.js (for web/api interactions).
-- **Documentation:** Maintain `README.md` for general info and this `GEMINI.md` for AI context.
-- **Version Control:** Standard Git flow.
+- Phase 2: LangGraph 기반 AI 에이전트 파이프라인
+- Phase 3: E2E 실행 환경 (Docker Compose, GitHub Actions CI)
+- Phase 4: DB 영속화 (SQLAlchemy async), API 키 인증, 감사 로그 미들웨어
+- Phase 5: Admin API CRUD, 파이프라인 이력 조회, 채널 CRUD, Alembic 마이그레이션
 
-## Goal
-The primary goal for the AI assistant in this context is to assist in scaffolding the project, choosing the technology stack, and implementing the core logic for the AI Agent Agency.
+## Tech Stack
+- **Language:** Python 3.11+
+- **Package Manager:** uv
+- **AI Framework:** LangGraph (StateGraph) for multi-agent orchestration
+- **LLMs:** Claude (Anthropic) for script writing, GPT-4o (OpenAI) for SEO
+- **API:** FastAPI + Pydantic v2
+- **Database:** SQLAlchemy 2.0 async (SQLite dev / PostgreSQL 16 prod) + Alembic migrations
+- **Auth:** API Key (SHA-256 hashing) with scope-based authorization
+- **Middleware:** Rate limiting (slowapi), Audit logging, CORS
+- **Testing:** pytest + pytest-asyncio (371+ tests)
+- **Lint/Format:** ruff
+- **Container:** Docker Compose (PostgreSQL + FastAPI)
+- **CI:** GitHub Actions (lint, test, docker build)
+
+## Development Conventions
+- **Architecture:** Repository pattern for DB access, Dependency Injection via FastAPI
+- **Config:** YAML-based channel settings via ChannelRegistry, env vars via pydantic-settings
+- **API:** RESTful, versioned (`/api/v1/`), Pydantic schemas for request/response
+- **Testing:** All new features require tests, 80%+ coverage target
+- **Documentation:** `CLAUDE.md` / `GEMINI.md` for AI context, `docs/MANUAL.md` for user guide
+
+## Common Commands
+```bash
+make test          # Run all tests
+make lint          # Lint check
+make format        # Code formatting
+make server        # FastAPI dev server (reload)
+make db-upgrade    # Apply DB migrations
+make db-migrate msg="description"  # Create new migration
+```
+
+## Project Structure
+```
+packages/agents/src/
+├── api/                    # FastAPI REST API
+│   ├── auth.py             # API key auth + scope verification
+│   ├── middleware.py        # Audit log + rate limiting
+│   ├── routes/admin.py     # API key management + audit logs
+│   ├── routes/channels.py  # Channel CRUD
+│   ├── routes/pipeline.py  # Pipeline execution + history
+│   └── routes/status.py    # Status + health check
+├── database/               # SQLAlchemy async ORM + repositories
+├── orchestrator/           # LangGraph pipeline supervisor
+├── brand_researcher/       # Brand research agent
+├── script_writer/          # Script writing agent (Claude)
+├── seo_optimizer/          # SEO optimization agent (GPT-4o)
+├── media_generator/        # TTS + image generation
+├── media_editor/           # FFmpeg video editing
+├── publisher/              # YouTube upload
+└── shared/                 # Config, models, LLM clients
+```
