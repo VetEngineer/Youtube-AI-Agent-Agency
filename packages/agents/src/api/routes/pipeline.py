@@ -6,12 +6,17 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import require_api_key
 from src.api.dependencies import get_channel_registry, get_settings
-from src.api.schemas import PipelineRunRequest, PipelineRunResponse
+from src.api.schemas import (
+    PipelineRunListResponse,
+    PipelineRunRequest,
+    PipelineRunResponse,
+    PipelineRunSummary,
+)
 from src.database.engine import get_db_session, get_session_factory
 from src.database.repositories import RunRepository
 from src.shared.config import AppSettings, ChannelRegistry
@@ -122,4 +127,46 @@ async def run_pipeline(
         status="pending",
         channel_id=request.channel_id,
         topic=request.topic,
+    )
+
+
+@router.get("/runs", response_model=PipelineRunListResponse)
+async def list_pipeline_runs(
+    channel_id: str | None = Query(None, description="채널 ID 필터"),
+    status: str | None = Query(None, description="상태 필터 (pending, running, completed, failed)"),
+    limit: int = Query(20, ge=1, le=100, description="페이지 크기"),
+    offset: int = Query(0, ge=0, description="오프셋"),
+    session: AsyncSession = Depends(get_db_session),
+    _api_key_id: str | None = Depends(require_api_key),
+) -> PipelineRunListResponse:
+    """파이프라인 실행 이력을 조회합니다."""
+    repo = RunRepository(session)
+
+    runs = await repo.list_with_filters(
+        channel_id=channel_id,
+        status=status,
+        limit=limit,
+        offset=offset,
+    )
+    total = await repo.count_with_filters(
+        channel_id=channel_id,
+        status=status,
+    )
+
+    return PipelineRunListResponse(
+        runs=[
+            PipelineRunSummary(
+                run_id=r.id,
+                channel_id=r.channel_id,
+                topic=r.topic,
+                status=r.status,
+                dry_run=r.dry_run,
+                created_at=r.created_at.isoformat() if r.created_at else None,
+                completed_at=r.completed_at.isoformat() if r.completed_at else None,
+            )
+            for r in runs
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
     )

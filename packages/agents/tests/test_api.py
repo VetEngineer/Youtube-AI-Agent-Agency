@@ -20,6 +20,14 @@ def _channels_dir(tmp_path: Path) -> Path:
     ch_dir = tmp_path / "channels"
     ch_dir.mkdir()
 
+    # 템플릿 채널 생성
+    template = ch_dir / "_template"
+    template.mkdir()
+    (template / "config.yaml").write_text(
+        "channel:\n  name: template\n  category: general\n  language: ko\n",
+        encoding="utf-8",
+    )
+
     # 테스트 채널 생성
     ch = ch_dir / "test-channel"
     ch.mkdir()
@@ -188,3 +196,137 @@ class TestStatusAPI:
         data = response.json()
         assert data["run_id"] == run_id
         assert data["status"] in ("pending", "running", "completed", "failed")
+
+
+# ============================================
+# Pipeline Runs List API
+# ============================================
+
+
+class TestPipelineRunsList:
+    """파이프라인 실행 이력 조회 테스트."""
+
+    def test_실행_목록_빈_결과(self, client: TestClient):
+        response = client.get("/api/v1/pipeline/runs")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["runs"] == [] or isinstance(data["runs"], list)
+        assert data["total"] >= 0
+
+    def test_실행_목록_생성_후_조회(self, client: TestClient):
+        client.post(
+            "/api/v1/pipeline/run",
+            json={"channel_id": "test-channel", "topic": "주제1", "dry_run": True},
+        )
+        client.post(
+            "/api/v1/pipeline/run",
+            json={"channel_id": "test-channel", "topic": "주제2", "dry_run": True},
+        )
+
+        response = client.get("/api/v1/pipeline/runs")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 2
+
+    def test_실행_목록_채널_필터(self, client: TestClient):
+        client.post(
+            "/api/v1/pipeline/run",
+            json={"channel_id": "test-channel", "topic": "필터 테스트", "dry_run": True},
+        )
+
+        response = client.get("/api/v1/pipeline/runs?channel_id=test-channel")
+        assert response.status_code == 200
+        data = response.json()
+        for run in data["runs"]:
+            assert run["channel_id"] == "test-channel"
+
+    def test_실행_목록_페이지네이션(self, client: TestClient):
+        response = client.get("/api/v1/pipeline/runs?limit=1&offset=0")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["limit"] == 1
+        assert data["offset"] == 0
+
+
+# ============================================
+# Channels CRUD API
+# ============================================
+
+
+class TestChannelsCRUD:
+    """채널 CRUD 테스트."""
+
+    def test_채널_생성_성공(self, client: TestClient):
+        response = client.post(
+            "/api/v1/channels/",
+            json={
+                "channel_id": "new-channel",
+                "name": "새 채널",
+                "category": "tech",
+            },
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["channel_id"] == "new-channel"
+        assert data["name"] == "새 채널"
+        assert data["category"] == "tech"
+
+    def test_채널_생성_중복_409(self, client: TestClient):
+        client.post(
+            "/api/v1/channels/",
+            json={"channel_id": "dup-channel", "name": "중복", "category": "test"},
+        )
+        response = client.post(
+            "/api/v1/channels/",
+            json={"channel_id": "dup-channel", "name": "중복2", "category": "test"},
+        )
+        assert response.status_code == 409
+
+    def test_채널_생성_잘못된_ID_422(self, client: TestClient):
+        response = client.post(
+            "/api/v1/channels/",
+            json={"channel_id": "invalid id!", "name": "잘못된 ID", "category": "test"},
+        )
+        assert response.status_code == 422
+
+    def test_채널_수정_성공(self, client: TestClient):
+        response = client.patch(
+            "/api/v1/channels/test-channel",
+            json={"name": "수정된 채널"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "수정된 채널"
+
+    def test_채널_수정_존재하지_않는_채널_404(self, client: TestClient):
+        response = client.patch(
+            "/api/v1/channels/nonexistent",
+            json={"name": "업데이트"},
+        )
+        assert response.status_code == 404
+
+    def test_채널_수정_빈_요청_400(self, client: TestClient):
+        response = client.patch(
+            "/api/v1/channels/test-channel",
+            json={},
+        )
+        assert response.status_code == 400
+
+    def test_채널_삭제_성공(self, client: TestClient):
+        # 삭제용 채널 생성
+        client.post(
+            "/api/v1/channels/",
+            json={"channel_id": "to-delete", "name": "삭제할 채널", "category": "test"},
+        )
+
+        response = client.delete("/api/v1/channels/to-delete")
+        assert response.status_code == 200
+        assert response.json()["channel_id"] == "to-delete"
+
+        # 삭제 후 조회 시 404
+        response = client.get("/api/v1/channels/to-delete")
+        assert response.status_code == 404
+
+    def test_채널_삭제_존재하지_않는_채널_404(self, client: TestClient):
+        response = client.delete("/api/v1/channels/nonexistent")
+        assert response.status_code == 404

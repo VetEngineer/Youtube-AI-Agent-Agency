@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -156,3 +157,42 @@ class ChannelRegistry:
                 (new_channel_dir / template_file.name).write_text(content, encoding="utf-8")
 
         return new_channel_dir
+
+    def update_channel_config(self, channel_id: str, updates: dict[str, Any]) -> Path:
+        """채널 설정을 부분 업데이트합니다.
+
+        Args:
+            channel_id: 채널 ID
+            updates: 업데이트할 필드 딕셔너리 (None 값은 무시)
+
+        Returns:
+            config.yaml 파일 경로
+        """
+        config_path = self.get_channel_path(channel_id) / "config.yaml"
+        data = load_yaml(config_path)
+
+        channel_data = data.get("channel", {})
+        for key, value in updates.items():
+            if value is not None:
+                channel_data[key] = value
+        data["channel"] = channel_data
+
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.dump(data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+
+        self._settings_cache.pop(channel_id, None)
+        return config_path
+
+    def delete_channel(self, channel_id: str) -> None:
+        """채널 디렉토리를 삭제합니다.
+
+        Args:
+            channel_id: 채널 ID
+
+        Raises:
+            FileNotFoundError: 채널이 존재하지 않는 경우
+        """
+        channel_path = self.get_channel_path(channel_id)
+        shutil.rmtree(channel_path)
+        self._settings_cache.pop(channel_id, None)
+        self._brand_guide_cache.pop(channel_id, None)

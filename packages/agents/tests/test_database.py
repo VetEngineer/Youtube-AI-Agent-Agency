@@ -268,3 +268,119 @@ class TestAuditLogRepository:
 
         logs = await repo.list_recent(limit=10)
         assert len(logs) == 2
+
+
+# ============================================
+# RunRepository 필터링 테스트
+# ============================================
+
+
+class TestRunRepositoryFilters:
+    """RunRepository 필터링/페이지네이션 테스트."""
+
+    async def test_list_with_filters_채널_필터(self, session):
+        repo = RunRepository(session)
+        await repo.create(run_id="f-1", channel_id="ch-a", topic="A")
+        await repo.create(run_id="f-2", channel_id="ch-a", topic="B")
+        await repo.create(run_id="f-3", channel_id="ch-b", topic="C")
+        await session.flush()
+
+        results = await repo.list_with_filters(channel_id="ch-a")
+        assert len(results) == 2
+
+    async def test_list_with_filters_상태_필터(self, session):
+        repo = RunRepository(session)
+        await repo.create(run_id="s-1", channel_id="ch-1", topic="A")
+        await repo.create(run_id="s-2", channel_id="ch-1", topic="B")
+        await repo.update_status("s-2", status="completed")
+        await session.flush()
+
+        results = await repo.list_with_filters(status="pending")
+        assert all(r.status == "pending" for r in results)
+
+    async def test_list_with_filters_페이지네이션(self, session):
+        repo = RunRepository(session)
+        for i in range(5):
+            await repo.create(run_id=f"p-{i}", channel_id="ch-1", topic=f"T{i}")
+        await session.flush()
+
+        page1 = await repo.list_with_filters(limit=2, offset=0)
+        page2 = await repo.list_with_filters(limit=2, offset=2)
+        assert len(page1) == 2
+        assert len(page2) == 2
+        assert page1[0].id != page2[0].id
+
+    async def test_count_with_filters(self, session):
+        repo = RunRepository(session)
+        await repo.create(run_id="c-1", channel_id="ch-x", topic="A")
+        await repo.create(run_id="c-2", channel_id="ch-x", topic="B")
+        await repo.create(run_id="c-3", channel_id="ch-y", topic="C")
+        await session.flush()
+
+        total = await repo.count_with_filters(channel_id="ch-x")
+        assert total == 2
+
+        total_all = await repo.count_with_filters()
+        assert total_all >= 3
+
+
+# ============================================
+# ApiKeyRepository 확장 테스트
+# ============================================
+
+
+class TestApiKeyRepositoryExtended:
+    """ApiKeyRepository 확장 메서드 테스트."""
+
+    async def test_get_by_id(self, session):
+        repo = ApiKeyRepository(session)
+        await repo.create(key_id="ext-1", key_hash="h-ext-1", name="확장 키")
+        await session.flush()
+
+        found = await repo.get_by_id("ext-1")
+        assert found is not None
+        assert found.name == "확장 키"
+
+    async def test_get_by_id_없는_키(self, session):
+        repo = ApiKeyRepository(session)
+        found = await repo.get_by_id("nonexistent")
+        assert found is None
+
+    async def test_get_all_비활성_포함(self, session):
+        repo = ApiKeyRepository(session)
+        await repo.create(key_id="ga-1", key_hash="ga-h1", name="활성")
+        await repo.create(key_id="ga-2", key_hash="ga-h2", name="비활성")
+        await repo.deactivate("ga-2")
+        await session.flush()
+
+        active_only = await repo.get_all(include_inactive=False)
+        all_keys = await repo.get_all(include_inactive=True)
+        assert len(all_keys) >= len(active_only)
+
+
+# ============================================
+# AuditLogRepository 필터링 테스트
+# ============================================
+
+
+class TestAuditLogRepositoryFilters:
+    """AuditLogRepository 필터링 테스트."""
+
+    async def test_list_with_filters_메서드_필터(self, session):
+        repo = AuditLogRepository(session)
+        await repo.create(method="GET", path="/a", status_code=200)
+        await repo.create(method="POST", path="/b", status_code=201)
+        await repo.create(method="GET", path="/c", status_code=200)
+        await session.flush()
+
+        results = await repo.list_with_filters(method="GET")
+        assert all(r.method == "GET" for r in results)
+
+    async def test_count_with_filters(self, session):
+        repo = AuditLogRepository(session)
+        await repo.create(method="GET", path="/x", status_code=200)
+        await repo.create(method="POST", path="/y", status_code=201)
+        await session.flush()
+
+        total = await repo.count_with_filters(method="GET")
+        assert total >= 1

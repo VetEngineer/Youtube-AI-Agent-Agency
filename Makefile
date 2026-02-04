@@ -1,4 +1,4 @@
-.PHONY: help install test test-cov lint format run server clean docker-build docker-up docker-down docker-logs dev-setup
+.PHONY: help install test test-cov lint format run server clean docker-build docker-up docker-down docker-logs dev-setup db-migrate db-upgrade db-downgrade db-history
 
 AGENTS_DIR = packages/agents
 
@@ -48,6 +48,18 @@ docker-down: ## Docker Compose 종료
 
 docker-logs: ## Docker 로그 확인
 	docker compose logs -f agents
+
+db-migrate: ## 새 Alembic 마이그레이션 생성 (msg= 필수)
+	cd $(AGENTS_DIR) && uv run alembic revision --autogenerate -m "$(msg)"
+
+db-upgrade: ## DB 최신 스키마로 업그레이드
+	cd $(AGENTS_DIR) && uv run alembic upgrade head
+
+db-downgrade: ## DB 한 단계 롤백
+	cd $(AGENTS_DIR) && uv run alembic downgrade -1
+
+db-history: ## 마이그레이션 이력 확인
+	cd $(AGENTS_DIR) && uv run alembic history
 
 dev-setup: install ## 개발 환경 초기화
 	@test -f .env || cp .env.example .env

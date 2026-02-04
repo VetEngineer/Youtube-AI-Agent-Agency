@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models import ApiKeyModel, AuditLogModel, PipelineRunModel
@@ -96,6 +96,49 @@ class RunRepository:
         )
         return list(result.scalars().all())
 
+    def _build_filter_query(
+        self,
+        channel_id: str | None = None,
+        status: str | None = None,
+    ) -> list:
+        """필터 조건을 생성합니다."""
+        conditions = []
+        if channel_id is not None:
+            conditions.append(PipelineRunModel.channel_id == channel_id)
+        if status is not None:
+            conditions.append(PipelineRunModel.status == status)
+        return conditions
+
+    async def list_with_filters(
+        self,
+        channel_id: str | None = None,
+        status: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[PipelineRunModel]:
+        """필터링과 페이지네이션을 지원하는 목록 조회."""
+        conditions = self._build_filter_query(channel_id, status)
+        query = (
+            select(PipelineRunModel)
+            .where(*conditions)
+            .order_by(PipelineRunModel.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self._session.execute(query)
+        return list(result.scalars().all())
+
+    async def count_with_filters(
+        self,
+        channel_id: str | None = None,
+        status: str | None = None,
+    ) -> int:
+        """필터링된 결과의 총 개수를 반환합니다."""
+        conditions = self._build_filter_query(channel_id, status)
+        query = select(func.count(PipelineRunModel.id)).where(*conditions)
+        result = await self._session.execute(query)
+        return result.scalar_one()
+
 
 class ApiKeyRepository:
     """API 키 저장소."""
@@ -133,11 +176,24 @@ class ApiKeyRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_id(self, key_id: str) -> ApiKeyModel | None:
+        """키 ID로 조회합니다."""
+        result = await self._session.execute(select(ApiKeyModel).where(ApiKeyModel.id == key_id))
+        return result.scalar_one_or_none()
+
     async def get_all_active(self) -> list[ApiKeyModel]:
         """활성화된 모든 API 키를 조회합니다."""
         result = await self._session.execute(
             select(ApiKeyModel).where(ApiKeyModel.is_active.is_(True))
         )
+        return list(result.scalars().all())
+
+    async def get_all(self, include_inactive: bool = False) -> list[ApiKeyModel]:
+        """모든 API 키를 조회합니다."""
+        query = select(ApiKeyModel).order_by(ApiKeyModel.created_at.desc())
+        if not include_inactive:
+            query = query.where(ApiKeyModel.is_active.is_(True))
+        result = await self._session.execute(query)
         return list(result.scalars().all())
 
     async def update_last_used(self, key_id: str) -> None:
@@ -191,3 +247,46 @@ class AuditLogRepository:
             select(AuditLogModel).order_by(AuditLogModel.timestamp.desc()).limit(limit)
         )
         return list(result.scalars().all())
+
+    def _build_filter_query(
+        self,
+        api_key_id: str | None = None,
+        method: str | None = None,
+    ) -> list:
+        """필터 조건을 생성합니다."""
+        conditions = []
+        if api_key_id is not None:
+            conditions.append(AuditLogModel.api_key_id == api_key_id)
+        if method is not None:
+            conditions.append(AuditLogModel.method == method.upper())
+        return conditions
+
+    async def list_with_filters(
+        self,
+        api_key_id: str | None = None,
+        method: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[AuditLogModel]:
+        """필터링을 지원하는 감사 로그 목록 조회."""
+        conditions = self._build_filter_query(api_key_id, method)
+        query = (
+            select(AuditLogModel)
+            .where(*conditions)
+            .order_by(AuditLogModel.timestamp.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self._session.execute(query)
+        return list(result.scalars().all())
+
+    async def count_with_filters(
+        self,
+        api_key_id: str | None = None,
+        method: str | None = None,
+    ) -> int:
+        """필터링된 로그 개수를 반환합니다."""
+        conditions = self._build_filter_query(api_key_id, method)
+        query = select(func.count(AuditLogModel.id)).where(*conditions)
+        result = await self._session.execute(query)
+        return result.scalar_one()

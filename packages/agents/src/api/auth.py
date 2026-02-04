@@ -139,3 +139,41 @@ async def optional_api_key(
         return None
 
     return await _resolve_api_key(request, session, settings)
+
+
+async def require_admin_scope(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    settings: AppSettings = Depends(get_settings),
+) -> str | None:
+    """관리자 스코프를 요구하는 FastAPI 의존성.
+
+    DISABLE_AUTH=true인 경우 인증을 건너뜁니다.
+    API 키의 scopes에 "admin"이 포함되어 있어야 합니다.
+
+    Returns:
+        API 키 ID
+    Raises:
+        HTTPException 401: API 키가 없거나 유효하지 않은 경우
+        HTTPException 403: admin 스코프가 없는 경우
+    """
+    if settings.disable_auth:
+        return None
+
+    api_key_id = await _resolve_api_key(request, session, settings)
+    if api_key_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 API 키입니다.",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+
+    repo = ApiKeyRepository(session)
+    api_key = await repo.get_by_id(api_key_id)
+    if api_key is None or "admin" not in api_key.scopes:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="관리자 권한이 필요합니다.",
+        )
+
+    return api_key_id

@@ -49,5 +49,8 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 
+# Database
+packages/agents/data/
+
 # Misc
 output/
