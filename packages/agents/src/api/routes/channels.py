@@ -6,6 +6,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from src.api.auth import require_api_key
 from src.api.dependencies import get_channel_registry
 from src.api.schemas import ChannelInfo, ChannelListResponse
 from src.shared.config import ChannelRegistry
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 @router.get("/", response_model=ChannelListResponse)
 async def list_channels(
     registry: ChannelRegistry = Depends(get_channel_registry),
+    _api_key_id: str | None = Depends(require_api_key),
 ) -> ChannelListResponse:
     """등록된 채널 목록을 조회합니다."""
     channel_ids = registry.list_channels()
@@ -44,6 +46,7 @@ async def list_channels(
 async def get_channel(
     channel_id: str,
     registry: ChannelRegistry = Depends(get_channel_registry),
+    _api_key_id: str | None = Depends(require_api_key),
 ) -> ChannelInfo:
     """특정 채널 정보를 조회합니다."""
     try:

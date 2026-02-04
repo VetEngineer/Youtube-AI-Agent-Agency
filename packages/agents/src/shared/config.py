@@ -24,6 +24,20 @@ class AppSettings(BaseSettings):
     channels_dir: str = "./channels"
     log_level: str = "INFO"
 
+    # 데이터베이스
+    database_url: str = "sqlite+aiosqlite:///./data/agency.db"
+
+    # 인증
+    api_key_header: str = "X-API-Key"
+    disable_auth: bool = False
+
+    # Rate Limiting
+    rate_limit_per_minute: int = 60
+    rate_limit_pipeline_per_minute: int = 10
+
+    # CORS
+    cors_origins: str = "http://localhost:3000"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

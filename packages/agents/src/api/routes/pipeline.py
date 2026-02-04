@@ -7,21 +7,17 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.auth import require_api_key
 from src.api.dependencies import get_channel_registry, get_settings
 from src.api.schemas import PipelineRunRequest, PipelineRunResponse
+from src.database.engine import get_db_session, get_session_factory
+from src.database.repositories import RunRepository
 from src.shared.config import AppSettings, ChannelRegistry
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-# 실행 상태 저장소 (프로덕션에서는 Redis 등으로 교체)
-_run_storage: dict[str, dict[str, Any]] = {}
-
-
-def get_run_storage() -> dict[str, dict[str, Any]]:
-    """실행 상태 저장소를 반환합니다."""
-    return _run_storage
 
 
 async def _execute_pipeline(
@@ -38,7 +34,16 @@ async def _execute_pipeline(
     from src.orchestrator import compile_pipeline, create_initial_state
 
     logger.info("파이프라인 시작: run_id=%s, channel=%s", run_id, channel_id)
-    _run_storage[run_id]["status"] = "running"
+
+    session_factory = get_session_factory()
+    if session_factory is None:
+        logger.error("DB 세션 팩토리가 없습니다: run_id=%s", run_id)
+        return
+
+    async with session_factory() as session:
+        repo = RunRepository(session)
+        await repo.update_status(run_id, status="running")
+        await session.commit()
 
     try:
         agent_registry = _build_agent_registry(settings)
@@ -52,25 +57,32 @@ async def _execute_pipeline(
 
         final_state = await pipeline.ainvoke(initial_state)
 
-        _run_storage[run_id].update(
-            {
-                "status": "completed",
-                "result": {
-                    "content_status": str(final_state.get("status", "")),
-                    "errors": final_state.get("errors", []),
-                },
-            }
-        )
+        result: dict[str, Any] = {
+            "content_status": str(final_state.get("status", "")),
+            "errors": final_state.get("errors", []),
+        }
+
+        async with session_factory() as session:
+            repo = RunRepository(session)
+            await repo.update_status(
+                run_id,
+                status="completed",
+                result=result,
+            )
+            await session.commit()
+
         logger.info("파이프라인 완료: run_id=%s", run_id)
 
     except Exception as exc:
         logger.exception("파이프라인 실패: run_id=%s", run_id)
-        _run_storage[run_id].update(
-            {
-                "status": "failed",
-                "errors": [str(exc)],
-            }
-        )
+        async with session_factory() as session:
+            repo = RunRepository(session)
+            await repo.update_status(
+                run_id,
+                status="failed",
+                errors=[str(exc)],
+            )
+            await session.commit()
 
 
 @router.post("/run", response_model=PipelineRunResponse)
@@ -79,18 +91,20 @@ async def run_pipeline(
     background_tasks: BackgroundTasks,
     settings: AppSettings = Depends(get_settings),
     channel_registry: ChannelRegistry = Depends(get_channel_registry),
+    session: AsyncSession = Depends(get_db_session),
+    _api_key_id: str | None = Depends(require_api_key),
 ) -> PipelineRunResponse:
     """파이프라인을 백그라운드에서 실행합니다."""
     run_id = str(uuid.uuid4())
 
-    _run_storage[run_id] = {
-        "run_id": run_id,
-        "channel_id": request.channel_id,
-        "topic": request.topic,
-        "status": "pending",
-        "current_agent": None,
-        "errors": [],
-    }
+    repo = RunRepository(session)
+    await repo.create(
+        run_id=run_id,
+        channel_id=request.channel_id,
+        topic=request.topic,
+        brand_name=request.brand_name,
+        dry_run=request.dry_run,
+    )
 
     background_tasks.add_task(
         _execute_pipeline,

@@ -8,8 +8,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api.main import create_app
-from src.api.routes.pipeline import _run_storage
+from src.database.engine import get_db_session, init_db, set_session_factory
 from src.shared.config import ChannelRegistry
+
+TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 
 @pytest.fixture()
@@ -35,18 +37,46 @@ def _registry(_channels_dir: Path) -> ChannelRegistry:
 
 
 @pytest.fixture()
-def client(_registry: ChannelRegistry) -> TestClient:
+async def _db_session_factory():
+    """테스트용 인메모리 DB를 초기화합니다."""
+    factory = await init_db(TEST_DB_URL)
+    yield factory
+    set_session_factory(None)
+
+
+@pytest.fixture()
+def client(_registry: ChannelRegistry, _db_session_factory) -> TestClient:
     """FastAPI TestClient를 생성합니다."""
-    from src.api.dependencies import get_channel_registry
+    from src.api.dependencies import get_channel_registry, get_settings
+    from src.shared.config import AppSettings
 
     app = create_app()
+
+    # 의존성 오버라이드
     app.dependency_overrides[get_channel_registry] = lambda: _registry
+
+    # 인증 비활성화 (테스트용)
+    test_settings = AppSettings(
+        disable_auth=True,
+        database_url=TEST_DB_URL,
+        channels_dir=str(_registry.channels_dir),
+    )
+    app.dependency_overrides[get_settings] = lambda: test_settings
+
+    # DB 세션 오버라이드 (실제 get_db_session과 동일한 commit/rollback 패턴)
+    async def _override_db_session():
+        async with _db_session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db_session] = _override_db_session
 
     with TestClient(app) as c:
         yield c
-
-    # 실행 스토리지 초기화
-    _run_storage.clear()
 
 
 # ============================================
