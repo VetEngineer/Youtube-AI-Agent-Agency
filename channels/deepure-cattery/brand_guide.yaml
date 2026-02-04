@@ -1,0 +1,68 @@
+brand:
+  name: "딥퓨어캐터리"
+  tagline: "건강한 혈통, 따뜻한 가족"
+  positioning: "프리미엄 고양이 브리더"
+  values:
+    - "책임감 있는 브리딩"
+    - "고양이 건강 최우선"
+    - "투명한 분양 프로세스"
+    - "평생 케어 지원"
+
+target_audience:
+  primary: "고양이를 처음 분양받으려는 20-40대 가족 및 1인 가구"
+  pain_points:
+    - "건강한 고양이를 어디서 분양받을지 모름"
+    - "브리더와 펫샵의 차이를 모름"
+    - "고양이 입양 후 케어 방법에 대한 불안감"
+    - "믿을 수 있는 브리더를 찾기 어려움"
+  content_needs:
+    - "고양이 품종별 특성 이해"
+    - "건강한 새끼 고양이 고르는 법"
+    - "입양 전후 준비사항"
+    - "고양이 건강 관리 팁"
+
+tone_and_manner:
+  personality: "따뜻하지만 전문적인 수의사 친구"
+  formality: "semi-formal"
+  emotion: "warm"
+  humor_level: "light"
+  writing_style:
+    sentence_length: "medium"
+    vocabulary: "전문용어를 쉽게 풀어서 설명"
+    call_to_action: "부드러운 권유형"
+  do:
+    - "고양이 건강과 행복을 최우선으로 언급"
+    - "전문 지식을 쉽게 풀어 설명"
+    - "구체적인 사례와 경험 공유"
+    - "시청자 질문에 진정성 있게 답변"
+  dont:
+    - "과도한 판매 압박"
+    - "경쟁 브리더 비하"
+    - "검증되지 않은 의학 정보 제공"
+    - "고양이를 상품처럼 취급하는 표현"
+
+voice_design:
+  narration_style: "차분하고 신뢰감 있는 여성 목소리"
+  elevenlabs_voice_id: ""
+  speech_rate: "moderate"
+  pitch: "medium"
+  language: "ko"
+  reference_samples: []
+
+visual_identity:
+  color_palette:
+    - "#F5E6D3"
+    - "#8B7355"
+    - "#4A7C59"
+  thumbnail_style: "따뜻한 톤, 고양이 클로즈업 중심"
+  font_preference: "둥근 산세리프 (프리텐다드, 나눔스퀘어)"
+
+competitors:
+  - channel: "캣맘TV"
+    strengths:
+      - "친근한 일상 콘텐츠"
+    differentiation: "전문 브리딩 지식 기반 신뢰성"
+  - channel: "고양이사전"
+    strengths:
+      - "체계적인 품종 정보"
+    differentiation: "실제 브리더 경험 기반 실전 팁"

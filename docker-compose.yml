@@ -1,0 +1,17 @@
+services:
+  agents:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: youtube-ai-agents
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./packages/agents/src:/app/packages/agents/src:ro
+      - ./channels:/app/channels
+      - ./output:/app/output
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
