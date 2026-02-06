@@ -11,7 +11,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 WORKDIR /app
 
 COPY packages/agents/pyproject.toml packages/agents/
-RUN cd packages/agents && uv pip install --system -e ".[all]"
+RUN cd packages/agents && uv pip install --system -e ".[all,queue]"
 
 COPY packages/agents/src packages/agents/src
 COPY channels channels

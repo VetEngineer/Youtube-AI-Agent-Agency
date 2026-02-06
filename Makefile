@@ -1,4 +1,4 @@
-.PHONY: help install test test-cov lint format run server clean docker-build docker-up docker-down docker-logs dev-setup db-migrate db-upgrade db-downgrade db-history rag-index
+.PHONY: help install test test-cov lint format run server clean docker-build docker-up docker-down docker-logs dev-setup db-migrate db-upgrade db-downgrade db-history rag-index worker redis-up redis-down
 
 AGENTS_DIR = packages/agents
 
@@ -73,3 +73,16 @@ dev-setup: install ## 개발 환경 초기화
 
 rag-index: ## 채널 브랜드 자료 RAG 인덱싱 (channel= 필수)
 	cd $(AGENTS_DIR) && uv run python -c "from src.brand_researcher.rag import BrandIndexer, RAGConfig; idx = BrandIndexer(RAGConfig()); print(f'Indexed {idx.index_channel(\"$(channel)\", __import__(\"pathlib\").Path(\"../../channels/$(channel)\"))} chunks')"
+
+# ============================================
+# Worker / Redis (P7-1)
+# ============================================
+
+worker: ## Arq 워커 실행 (로컬)
+	cd $(AGENTS_DIR) && uv run python -m arq src.worker.tasks.WorkerConfig
+
+redis-up: ## Redis 컨테이너 시작
+	docker compose up -d redis
+
+redis-down: ## Redis 컨테이너 종료
+	docker compose stop redis

@@ -28,6 +28,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     yield
 
+    # Arq Redis 풀 정리
+    try:
+        from src.worker.enqueue import close_arq_pool
+
+        await close_arq_pool()
+    except ImportError:
+        pass
+
     logger.info("애플리케이션 종료")
 
 
