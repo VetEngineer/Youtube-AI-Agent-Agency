@@ -10,6 +10,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 YouTube 콘텐츠 자동 생성 파이프라인 시스템입니다. LangGraph 기반 6단계 AI 에이전트 파이프라인(브랜드 리서치 → 원고 → SEO → 미디어 생성 → 편집 → 업로드)을 FastAPI REST API와 CLI로 제어합니다.
 
+## 🏛️ Council & Roles
+
+This project follows a Council-based development process.
+
+### Your Role: Claude-code (Developer)
+- **Responsibility:** Main developer. You write code and implement features.
+- **Rules:**
+  - Check issues assigned to you.
+  - Implement the code.
+  - **MANDATORY:** Request review from **Codex** (PM) after implementation. Do not merge without review.
+
+
 ## Current Status
 
 **Phase 5 완료** - 핵심 기능 구현 완료 상태

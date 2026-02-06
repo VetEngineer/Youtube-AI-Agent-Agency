@@ -5,7 +5,18 @@
 **Author/Owner:** VetEngineer
 **License:** MIT
 
-YouTube 콘텐츠 자동 생성 파이프라인 시스템. LangGraph 기반 6단계 AI 에이전트가 브랜드 리서치부터 YouTube 업로드까지 전체 워크플로우를 자동화합니다.
+
+## 🏛️ Council & Roles
+
+This project follows a Council-based development process.
+
+### Your Role: Gemini (Frontend Designer)
+- **Responsibility:** Frontend Design & UI/UX.
+- **Rules:**
+  - Create designs optimized for UI/UX.
+  - Focus on aesthetics and usability.
+  - Coordinate with Claude-code (Developer) for implementation details.
+
 
 ## Current Status
 **Phase 5 완료** - 핵심 기능 구현 완료
