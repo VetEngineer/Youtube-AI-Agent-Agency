@@ -6,20 +6,25 @@ export interface DashboardSummary {
     active_runs: number;
     success_runs: number;
     failed_runs: number;
+    avg_duration_sec: number | null;
+    estimated_cost_usd: number | null;
     recent_runs: PipelineRunSummary[];
 }
 
 export interface PipelineRunSummary {
     run_id: string;
+    channel_id: string;
     topic: string;
     status: 'pending' | 'running' | 'completed' | 'failed';
+    dry_run: boolean;
     created_at: string;
+    completed_at: string | null;
 }
 
-export function useDashboardSummary() {
+export function useDashboardSummary(limit: number = 5) {
     return useQuery({
-        queryKey: ['dashboard', 'summary'],
-        queryFn: () => api.get<DashboardSummary>('/dashboard/summary'),
-        refetchInterval: 10000, // Refresh every 10 seconds
+        queryKey: ['dashboard', 'summary', limit],
+        queryFn: () => api.get<DashboardSummary>(`/dashboard/summary?limit=${limit}`),
+        refetchInterval: 10000,
     });
 }
