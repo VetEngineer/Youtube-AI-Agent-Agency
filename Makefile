@@ -1,4 +1,4 @@
-.PHONY: help install test test-cov lint format run server clean docker-build docker-up docker-down docker-logs dev-setup db-migrate db-upgrade db-downgrade db-history
+.PHONY: help install test test-cov lint format run server clean docker-build docker-up docker-down docker-logs dev-setup db-migrate db-upgrade db-downgrade db-history worker redis-up redis-down
 
 AGENTS_DIR = packages/agents
 
@@ -66,3 +66,16 @@ dev-setup: install ## 개발 환경 초기화
 	@echo "개발 환경 설정 완료"
 	@echo "  1. .env 파일에 API 키를 입력하세요"
 	@echo "  2. make test 로 테스트를 실행하세요"
+
+# ============================================
+# Worker / Redis (P7-1)
+# ============================================
+
+worker: ## Arq 워커 실행 (로컬)
+	cd $(AGENTS_DIR) && uv run python -m arq src.worker.tasks.WorkerConfig
+
+redis-up: ## Redis 컨테이너 시작
+	docker compose up -d redis
+
+redis-down: ## Redis 컨테이너 종료
+	docker compose stop redis

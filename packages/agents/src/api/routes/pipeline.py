@@ -35,11 +35,11 @@ async def _execute_pipeline(
     settings: AppSettings,
     channel_registry: ChannelRegistry,
 ) -> None:
-    """백그라운드에서 파이프라인을 실행합니다."""
+    """백그라운드에서 파이프라인을 실행합니다 (Redis 미사용 시 폴백)."""
     from src.cli import _build_agent_registry
     from src.orchestrator import compile_pipeline, create_initial_state
 
-    logger.info("파이프라인 시작: run_id=%s, channel=%s", run_id, channel_id)
+    logger.info("파이프라인 시작 (BackgroundTask 폴백): run_id=%s, channel=%s", run_id, channel_id)
 
     session_factory = get_session_factory()
     if session_factory is None:
@@ -100,7 +100,11 @@ async def run_pipeline(
     session: AsyncSession = Depends(get_db_session),
     _api_key_id: str | None = Depends(require_api_key),
 ) -> PipelineRunResponse:
-    """파이프라인을 백그라운드에서 실행합니다."""
+    """파이프라인을 실행합니다.
+
+    Redis가 사용 가능하면 Arq 큐를 통해 워커에서 실행하고,
+    Redis가 없으면 FastAPI BackgroundTasks로 폴백합니다.
+    """
     run_id = str(uuid.uuid4())
 
     repo = RunRepository(session)
@@ -112,16 +116,33 @@ async def run_pipeline(
         dry_run=request.dry_run,
     )
 
-    background_tasks.add_task(
-        _execute_pipeline,
-        run_id=run_id,
-        channel_id=request.channel_id,
-        topic=request.topic,
-        brand_name=request.brand_name,
-        dry_run=request.dry_run,
-        settings=settings,
-        channel_registry=channel_registry,
-    )
+    # Redis 큐로 enqueue 시도
+    enqueued = False
+    try:
+        from src.worker.enqueue import enqueue_pipeline
+
+        enqueued = await enqueue_pipeline(
+            run_id=run_id,
+            channel_id=request.channel_id,
+            topic=request.topic,
+            brand_name=request.brand_name,
+            dry_run=request.dry_run,
+        )
+    except ImportError:
+        logger.debug("arq 패키지 미설치 — BackgroundTasks 폴백")
+
+    # 큐 등록 실패 시 BackgroundTasks 폴백
+    if not enqueued:
+        background_tasks.add_task(
+            _execute_pipeline,
+            run_id=run_id,
+            channel_id=request.channel_id,
+            topic=request.topic,
+            brand_name=request.brand_name,
+            dry_run=request.dry_run,
+            settings=settings,
+            channel_registry=channel_registry,
+        )
 
     return PipelineRunResponse(
         run_id=run_id,

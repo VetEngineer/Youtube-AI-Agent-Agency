@@ -53,6 +53,10 @@ auth = [
     "bcrypt>=4.0.0",
     "slowapi>=0.1.9",
 ]
+queue = [
+    "arq>=0.26",
+    "redis>=5.0",
+]
 dashboard = []
 dev = [
     "pytest>=8.0.0",
