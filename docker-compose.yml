@@ -15,9 +15,51 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql+asyncpg://agency:${DB_PASSWORD:-localdevpassword}@db:5432/youtube_agency
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: youtube-ai-worker
+    command: ["python", "-m", "arq", "src.worker.tasks.WorkerConfig"]
+    volumes:
+      - ./packages/agents/src:/app/packages/agents/src:ro
+      - ./channels:/app/channels
+      - ./output:/app/output
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql+asyncpg://agency:${DB_PASSWORD:-localdevpassword}@db:5432/youtube_agency
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: youtube-ai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   db:
@@ -40,3 +82,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:
