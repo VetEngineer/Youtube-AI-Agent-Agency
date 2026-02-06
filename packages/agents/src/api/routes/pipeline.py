@@ -6,12 +6,13 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import require_api_key
 from src.api.dependencies import get_channel_registry, get_settings
 from src.api.schemas import (
+    PipelineRunDetail,
     PipelineRunListResponse,
     PipelineRunRequest,
     PipelineRunResponse,
@@ -169,4 +170,33 @@ async def list_pipeline_runs(
         total=total,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.get("/runs/{run_id}", response_model=PipelineRunDetail)
+async def get_pipeline_run(
+    run_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    _api_key_id: str | None = Depends(require_api_key),
+) -> PipelineRunDetail:
+    """특정 파이프라인 실행의 상세 정보를 조회합니다."""
+    repo = RunRepository(session)
+    run = await repo.get(run_id)
+
+    if run is None:
+        raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
+
+    return PipelineRunDetail(
+        run_id=run.id,
+        channel_id=run.channel_id,
+        topic=run.topic,
+        brand_name=run.brand_name,
+        status=run.status,
+        current_agent=run.current_agent,
+        dry_run=run.dry_run,
+        created_at=run.created_at.isoformat() if run.created_at else None,
+        updated_at=run.updated_at.isoformat() if run.updated_at else None,
+        completed_at=run.completed_at.isoformat() if run.completed_at else None,
+        result=run.result,
+        errors=run.errors or [],
     )

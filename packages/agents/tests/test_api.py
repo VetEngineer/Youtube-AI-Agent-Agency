@@ -330,3 +330,78 @@ class TestChannelsCRUD:
     def test_채널_삭제_존재하지_않는_채널_404(self, client: TestClient):
         response = client.delete("/api/v1/channels/nonexistent")
         assert response.status_code == 404
+
+
+# ============================================
+# Dashboard API
+# ============================================
+
+
+class TestDashboardAPI:
+    """대시보드 API 테스트."""
+
+    def test_대시보드_요약_조회(self, client: TestClient):
+        response = client.get("/api/v1/dashboard/summary")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "total_runs" in data
+        assert "active_runs" in data
+        assert "success_runs" in data
+        assert "failed_runs" in data
+        assert "recent_runs" in data
+        assert isinstance(data["recent_runs"], list)
+
+    def test_대시보드_요약_데이터_생성_후_조회(self, client: TestClient):
+        # 파이프라인 실행 생성
+        client.post(
+            "/api/v1/pipeline/run",
+            json={"channel_id": "test-channel", "topic": "대시보드 테스트", "dry_run": True},
+        )
+
+        response = client.get("/api/v1/dashboard/summary")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["total_runs"] >= 1
+        assert len(data["recent_runs"]) >= 1
+
+    def test_대시보드_요약_limit_파라미터(self, client: TestClient):
+        response = client.get("/api/v1/dashboard/summary?limit=3")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert len(data["recent_runs"]) <= 3
+
+
+# ============================================
+# Pipeline Run Detail API
+# ============================================
+
+
+class TestPipelineRunDetail:
+    """파이프라인 실행 상세 조회 테스트."""
+
+    def test_실행_상세_조회(self, client: TestClient):
+        # 실행 생성
+        run_response = client.post(
+            "/api/v1/pipeline/run",
+            json={"channel_id": "test-channel", "topic": "상세 조회 테스트", "dry_run": True},
+        )
+        run_id = run_response.json()["run_id"]
+
+        # 상세 조회
+        response = client.get(f"/api/v1/pipeline/runs/{run_id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["run_id"] == run_id
+        assert data["channel_id"] == "test-channel"
+        assert data["topic"] == "상세 조회 테스트"
+        assert data["dry_run"] is True
+        assert "status" in data
+        assert "created_at" in data
+
+    def test_존재하지_않는_실행_상세_404(self, client: TestClient):
+        response = client.get("/api/v1/pipeline/runs/nonexistent-run-id")
+        assert response.status_code == 404

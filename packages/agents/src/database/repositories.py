@@ -139,6 +139,49 @@ class RunRepository:
         result = await self._session.execute(query)
         return result.scalar_one()
 
+    async def get_stats(self) -> dict[str, int]:
+        """대시보드용 통계를 조회합니다."""
+        # 전체 개수
+        total_result = await self._session.execute(
+            select(func.count(PipelineRunModel.id))
+        )
+        total = total_result.scalar_one()
+
+        # 상태별 개수
+        status_counts = {}
+        for status in ["pending", "running", "completed", "failed"]:
+            result = await self._session.execute(
+                select(func.count(PipelineRunModel.id)).where(
+                    PipelineRunModel.status == status
+                )
+            )
+            status_counts[status] = result.scalar_one()
+
+        return {
+            "total": total,
+            "pending": status_counts["pending"],
+            "running": status_counts["running"],
+            "completed": status_counts["completed"],
+            "failed": status_counts["failed"],
+        }
+
+    async def get_avg_duration(self) -> float | None:
+        """완료된 실행의 평균 소요시간(초)을 계산합니다."""
+        result = await self._session.execute(
+            select(
+                func.avg(
+                    func.julianday(PipelineRunModel.completed_at)
+                    - func.julianday(PipelineRunModel.created_at)
+                )
+                * 86400  # 일 → 초 변환
+            ).where(
+                PipelineRunModel.status == "completed",
+                PipelineRunModel.completed_at.isnot(None),
+            )
+        )
+        avg = result.scalar_one()
+        return float(avg) if avg is not None else None
+
 
 class ApiKeyRepository:
     """API 키 저장소."""
