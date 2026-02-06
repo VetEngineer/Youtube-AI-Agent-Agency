@@ -60,6 +60,42 @@ class PipelineRunListResponse(BaseModel):
     offset: int
 
 
+class PipelineRunDetail(BaseModel):
+    """파이프라인 실행 상세 정보."""
+
+    run_id: str
+    channel_id: str
+    topic: str
+    brand_name: str = ""
+    status: str
+    current_agent: str | None = None
+    dry_run: bool = False
+    created_at: str | None = None
+    updated_at: str | None = None
+    completed_at: str | None = None
+    result: dict[str, Any] | None = None
+    errors: list[str] = Field(default_factory=list)
+
+
+# ============================================
+# 대시보드
+# ============================================
+
+
+class DashboardSummary(BaseModel):
+    """대시보드 요약 통계."""
+
+    total_runs: int = Field(..., description="전체 실행 수")
+    active_runs: int = Field(..., description="활성 실행 수 (pending + running)")
+    success_runs: int = Field(..., description="성공 실행 수")
+    failed_runs: int = Field(..., description="실패 실행 수")
+    avg_duration_sec: float | None = Field(None, description="평균 소요시간 (초)")
+    estimated_cost_usd: float | None = Field(None, description="예상 비용 (USD, P8-3 전까지 null)")
+    recent_runs: list[PipelineRunSummary] = Field(
+        default_factory=list, description="최근 실행 목록"
+    )
+
+
 # ============================================
 # 채널
 # ============================================

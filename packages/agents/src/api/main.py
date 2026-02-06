@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.dependencies import get_settings
 from src.api.middleware import AuditLogMiddleware, setup_rate_limiting
-from src.api.routes import admin, channels, pipeline, status
+from src.api.routes import admin, channels, dashboard, pipeline, status
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +59,7 @@ def create_app() -> FastAPI:
     setup_rate_limiting(application)
 
     # 라우터 등록
+    application.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
     application.include_router(pipeline.router, prefix="/api/v1/pipeline", tags=["pipeline"])
     application.include_router(channels.router, prefix="/api/v1/channels", tags=["channels"])
     application.include_router(status.router, prefix="/api/v1", tags=["status"])
