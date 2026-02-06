@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -18,8 +17,13 @@ const pretendard = localFont({
   display: "swap",
 });
 
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: [
+    { path: "../../public/fonts/inter-latin-400-normal.woff2", weight: "400" },
+    { path: "../../public/fonts/inter-latin-500-normal.woff2", weight: "500" },
+    { path: "../../public/fonts/inter-latin-600-normal.woff2", weight: "600" },
+    { path: "../../public/fonts/inter-latin-700-normal.woff2", weight: "700" },
+  ],
   variable: "--font-inter",
   display: "swap",
 });

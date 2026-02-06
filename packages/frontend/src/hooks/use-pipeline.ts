@@ -20,7 +20,8 @@ export function usePipeline(runId: string) {
         queryKey: ['pipeline', runId],
         queryFn: () => api.get<PipelineRunDetail>(`/pipeline/runs/${runId}`),
         enabled: !!runId,
-        refetchInterval: (data) => {
+        refetchInterval: (query) => {
+            const data = query.state.data;
             if (!data) return 1000;
             return ['completed', 'failed'].includes(data.status) ? false : 3000;
         },
