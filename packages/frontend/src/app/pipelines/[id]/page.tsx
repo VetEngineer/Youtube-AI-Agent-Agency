@@ -1,121 +1,90 @@
-"use client"
+'use client';
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { ScrollArea } from "@/components/ui/scroll-area" // Note: Need to add scroll-area if not present, otherwise use div
-import { CheckCircle2, Circle, Clock, Loader2, PlayCircle, FileText, Image as ImageIcon, Video } from "lucide-react"
+import { usePipeline } from '@/hooks/use-pipeline';
+import { Badge } from '@/components/ui/badge';
+import { useParams } from 'next/navigation';
 
-// Mock Data
-const steps = [
-    { id: 1, name: "Brand Research", status: "completed", duration: "2m 30s" },
-    { id: 2, name: "Script Writing", status: "completed", duration: "1m 15s" },
-    { id: 3, name: "SEO Optimization", status: "completed", duration: "45s" },
-    { id: 4, name: "Media Generation", status: "in-progress", duration: "Running..." },
-    { id: 5, name: "Video Editing", status: "pending", duration: "-" },
-    { id: 6, name: "Youtube Upload", status: "pending", duration: "-" },
-]
+export default function PipelineDetailPage() {
+    const params = useParams();
+    const id = params?.id as string;
 
-const logs = [
-    "[10:00:01] [System] Pipeline started for 'Future of AI'",
-    "[10:00:05] [Research] Searching for 'AI Trends 2026'...",
-    "[10:01:20] [Research] Found 15 relevant articles.",
-    "[10:02:30] [Research] Completed. Output saved.",
-    "[10:02:35] [Script] Generating script with 'Informative' tone...",
-    "[10:03:50] [Script] Draft v1 created.",
-    "[10:04:35] [SEO] Keywords extracted: ['AI', 'Future', 'Tech'].",
-    "[10:05:00] [Media] Generating TTS audio...",
-]
+    const { data: pipeline, isLoading, error } = usePipeline(id);
 
-export default function PipelineDetailsPage({ params }: { params: { id: string } }) {
-    // In a real app, use params.id to fetch data
+    if (isLoading) return <div>Loading pipeline details...</div>;
+    if (error || !pipeline) return <div>Error loading pipeline.</div>;
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Pipeline Details</h2>
-                    <p className="text-muted-foreground">ID: PL-001 • Future of AI in 2030</p>
+                    <h2 className="text-2xl font-bold tracking-tight">{pipeline.topic}</h2>
+                    <p className="text-sm text-muted-foreground">
+                        Run ID: {pipeline.run_id}
+                    </p>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" className="border-red-500/50 hover:bg-red-500/10 text-red-500">Stop Pipeline</Button>
-                    <Button>View on YouTube</Button>
+                <div className="flex items-center gap-2">
+                    <Badge variant={pipeline.status === 'completed' ? 'default' : 'secondary'}>
+                        {pipeline.status}
+                    </Badge>
                 </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-3">
-                {/* Left Column: Status Timeline */}
-                <Card className="lg:col-span-1 bg-card/50 backdrop-blur-sm border-white/5 h-fit">
-                    <CardHeader>
-                        <CardTitle>Progress</CardTitle>
-                        <CardDescription>Current stage of automation</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="relative border-l border-muted ml-3 space-y-8 pb-2">
-                            {steps.map((step, index) => (
-                                <div key={step.id} className="ml-6 relative">
-                                    <div className={`absolute -left-[31px] -top-1 h-6 w-6 rounded-full border-2 flex items-center justify-center bg-background
-                     ${step.status === 'completed' ? 'border-primary text-primary' :
-                                            step.status === 'in-progress' ? 'border-blue-500 text-blue-500 animate-pulse' : 'border-muted text-muted-foreground'
-                                        }`}>
-                                        {step.status === 'completed' && <CheckCircle2 className="h-4 w-4" />}
-                                        {step.status === 'in-progress' && <Loader2 className="h-4 w-4 animate-spin" />}
-                                        {step.status === 'pending' && <Circle className="h-4 w-4" />}
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className={`font-medium ${step.status === 'in-progress' ? 'text-blue-400' : ''}`}>{step.name}</span>
-                                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                            <Clock className="h-3 w-3" /> {step.duration}
-                                        </span>
-                                    </div>
+            <div className="grid gap-6 md:grid-cols-3">
+                <div className="md:col-span-2 space-y-6">
+                    <div className="rounded-xl border bg-card text-card-foreground shadow p-6">
+                        <h3 className="font-semibold mb-4">Pipeline Progress</h3>
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/50">
+                                <div className={`h-2 w-2 rounded-full ${pipeline.status === 'running' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                                <div>
+                                    <p className="font-medium">Current Agent: {pipeline.current_agent || 'Initializing...'}</p>
+                                    <p className="text-sm text-muted-foreground capitalize">{pipeline.status}</p>
                                 </div>
-                            ))}
+                            </div>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
 
-                {/* Right Column: Logs & Artifacts */}
-                <div className="lg:col-span-2 space-y-6">
-                    <Card className="bg-card/50 backdrop-blur-sm border-white/5">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <FileText className="h-5 w-5 text-primary" />
-                                Generated Artifacts
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            <div className="p-4 border rounded-lg bg-background/50 hover:border-primary cursor-pointer transition-colors flex flex-col items-center gap-2 text-center">
-                                <FileText className="h-8 w-8 text-muted-foreground" />
-                                <span className="text-sm font-medium">Script.md</span>
-                            </div>
-                            <div className="p-4 border rounded-lg bg-background/50 hover:border-primary cursor-pointer transition-colors flex flex-col items-center gap-2 text-center">
-                                <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                                <span className="text-sm font-medium">Thumbnails (4)</span>
-                            </div>
-                            <div className="p-4 border rounded-lg bg-background/50 hover:border-primary cursor-pointer transition-colors flex flex-col items-center gap-2 text-center opacity-50">
-                                <Video className="h-8 w-8 text-muted-foreground" />
-                                <span className="text-sm font-medium">Final Video (Pending)</span>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <div className="rounded-xl border bg-card text-card-foreground shadow p-6">
+                        <h3 className="font-semibold mb-4">Logs</h3>
+                        <div className="bg-black text-white p-4 rounded-lg font-mono text-sm h-64 overflow-y-auto">
+                            <div className="text-gray-500">[System] Pipeline initialized...</div>
+                            {pipeline.errors && pipeline.errors.length > 0 && (
+                                <div className="text-red-400">
+                                    {pipeline.errors.map((e, i) => <div key={i}>[Error] {e}</div>)}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
 
-                    <Card className="bg-black/80 border-white/10 font-mono text-sm">
-                        <CardHeader className="py-3 border-b border-white/10">
-                            <CardTitle className="text-sm font-normal text-muted-foreground flex items-center gap-2">
-                                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                                Live Terminal Logs
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-4 h-[300px] overflow-y-auto space-y-1">
-                            {logs.map((log, i) => (
-                                <div key={i} className="text-green-500/80 break-all">{log}</div>
-                            ))}
-                            <div className="animate-pulse">_</div>
-                        </CardContent>
-                    </Card>
+                <div className="space-y-6">
+                    <div className="rounded-xl border bg-card text-card-foreground shadow p-6">
+                        <h3 className="font-semibold mb-4">Results</h3>
+                        {pipeline.result ? (
+                            <div className="space-y-4">
+                                {pipeline.result.video_url && (
+                                    <a
+                                        href={pipeline.result.video_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block p-3 bg-primary/10 text-primary rounded-md text-center hover:bg-primary/20 transition"
+                                    >
+                                        View Video
+                                    </a>
+                                )}
+                                {pipeline.result.script && (
+                                    <div className="p-3 border rounded-md max-h-40 overflow-y-auto text-sm">
+                                        <p className="font-medium mb-1">Script Preview:</p>
+                                        {pipeline.result.script.slice(0, 100)}...
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No results yet.</p>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
-    )
+    );
 }
