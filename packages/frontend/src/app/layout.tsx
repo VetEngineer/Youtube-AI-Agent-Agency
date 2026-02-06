@@ -1,18 +1,31 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
+import { Header } from "@/components/layout/header"
 import Providers from "./providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const pretendard = localFont({
+  src: [
+    { path: "../../public/fonts/pretendard-latin-400-normal.woff2", weight: "400" },
+    { path: "../../public/fonts/pretendard-latin-500-normal.woff2", weight: "500" },
+    { path: "../../public/fonts/pretendard-latin-600-normal.woff2", weight: "600" },
+    { path: "../../public/fonts/pretendard-latin-700-normal.woff2", weight: "700" },
+  ],
+  variable: "--font-pretendard",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const inter = localFont({
+  src: [
+    { path: "../../public/fonts/inter-latin-400-normal.woff2", weight: "400" },
+    { path: "../../public/fonts/inter-latin-500-normal.woff2", weight: "500" },
+    { path: "../../public/fonts/inter-latin-600-normal.woff2", weight: "600" },
+    { path: "../../public/fonts/inter-latin-700-normal.woff2", weight: "700" },
+  ],
+  variable: "--font-inter",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -26,19 +39,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="ko" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${pretendard.variable} ${inter.variable} antialiased`}
       >
         <SidebarProvider>
           <Providers>
             <AppSidebar />
-            <main className="w-full">
-              <div className="flex h-16 items-center border-b px-4">
-                <SidebarTrigger />
-                <h1 className="ml-4 text-lg font-semibold">Youtube Agent Agency</h1>
-              </div>
-              <div className="p-4">
+            <main className="flex flex-1 flex-col w-full">
+              <Header />
+              <div className="flex-1 overflow-auto p-6">
                 {children}
               </div>
             </main>
