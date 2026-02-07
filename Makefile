@@ -1,4 +1,4 @@
-.PHONY: help install test test-cov lint format run server clean docker-build docker-up docker-down docker-logs dev-setup db-migrate db-upgrade db-downgrade db-history
+.PHONY: help install test test-cov lint format run server clean docker-build docker-up docker-down docker-logs dev-setup db-migrate db-upgrade db-downgrade db-history rag-index
 
 AGENTS_DIR = packages/agents
 
@@ -66,3 +66,10 @@ dev-setup: install ## 개발 환경 초기화
 	@echo "개발 환경 설정 완료"
 	@echo "  1. .env 파일에 API 키를 입력하세요"
 	@echo "  2. make test 로 테스트를 실행하세요"
+
+# ============================================
+# RAG (P7-2)
+# ============================================
+
+rag-index: ## 채널 브랜드 자료 RAG 인덱싱 (channel= 필수)
+	cd $(AGENTS_DIR) && uv run python -c "from src.brand_researcher.rag import BrandIndexer, RAGConfig; idx = BrandIndexer(RAGConfig()); print(f'Indexed {idx.index_channel(\"$(channel)\", __import__(\"pathlib\").Path(\"../../channels/$(channel)\"))} chunks')"

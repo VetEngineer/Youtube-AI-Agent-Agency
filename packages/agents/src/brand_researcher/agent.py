@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from langchain_core.language_models import BaseChatModel
@@ -16,14 +17,16 @@ from src.shared.config import ChannelRegistry
 from src.shared.models import BrandGuide
 
 from .analyzer import BrandAnalyzer
-from .collector import BrandCollector, CollectionResult
+from .collector import BrandCollector, CollectedSource, CollectionResult
 from .voice_designer import VoiceDesigner
+
+logger = logging.getLogger(__name__)
 
 
 class BrandResearcherAgent:
     """브랜드 리서치 에이전트.
 
-    수집 → 분석 → 보이스 설계 → brand_guide.yaml 저장의 4단계 파이프라인을 실행합니다.
+    수집 → RAG 보강 → 분석 → 보이스 설계 → brand_guide.yaml 저장 파이프라인을 실행합니다.
     """
 
     def __init__(
@@ -31,12 +34,64 @@ class BrandResearcherAgent:
         llm: BaseChatModel,
         registry: ChannelRegistry,
         collector: BrandCollector | None = None,
+        rag_enabled: bool = False,
     ) -> None:
         self._llm = llm
         self._registry = registry
         self._collector = collector or BrandCollector()
         self._analyzer = BrandAnalyzer(llm)
         self._voice_designer = VoiceDesigner(llm)
+        self._rag_enabled = rag_enabled
+
+    def _get_rag_retriever(self):
+        """RAG retriever를 생성합니다 (lazy import)."""
+        try:
+            from .rag import BrandRetriever, RAGConfig
+
+            config = RAGConfig()
+            return BrandRetriever(config)
+        except ImportError:
+            logger.debug("chromadb 미설치 — RAG 비활성화")
+            return None
+
+    def _enrich_with_rag(
+        self,
+        collection: CollectionResult,
+        channel_id: str,
+        brand_name: str,
+    ) -> CollectionResult:
+        """RAG에서 관련 컨텍스트를 검색하여 수집 결과에 추가합니다."""
+        if not self._rag_enabled:
+            return collection
+
+        retriever = self._get_rag_retriever()
+        if retriever is None:
+            return collection
+
+        rag_results = retriever.retrieve_with_metadata(
+            channel_id=channel_id,
+            query=f"{brand_name} 브랜드 포지셔닝 타겟 오디언스",
+        )
+
+        if not rag_results:
+            logger.info("RAG 검색 결과 없음: channel=%s", channel_id)
+            return collection
+
+        rag_sources = [
+            CollectedSource(
+                title=f"[RAG] {r.get('source_name', 'unknown')}",
+                content=r.get("content", ""),
+                source_type="rag",
+            )
+            for r in rag_results
+            if r.get("content")
+        ]
+
+        logger.info("RAG 컨텍스트 %d개 추가: channel=%s", len(rag_sources), channel_id)
+        return CollectionResult(
+            sources=[*collection.sources, *rag_sources],
+            errors=list(collection.errors),
+        )
 
     async def research(
         self,
@@ -64,13 +119,16 @@ class BrandResearcherAgent:
             additional_queries=additional_queries,
         )
 
-        # 2. 분석 (Analyze)
+        # 2. RAG 컨텍스트 보강
+        collection = self._enrich_with_rag(collection, channel_id, brand_name)
+
+        # 3. 분석 (Analyze)
         analysis = await self._analyzer.analyze(brand_name, collection)
 
-        # 3. 보이스 설계 (Design)
+        # 4. 보이스 설계 (Design)
         voice_result = await self._voice_designer.design(analysis)
 
-        # 4. BrandGuide 조합
+        # 5. BrandGuide 조합
         guide = BrandGuide(
             brand=analysis.brand,
             target_audience=analysis.target_audience,
