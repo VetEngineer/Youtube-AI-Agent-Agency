@@ -123,6 +123,12 @@ def _log_usage_summary(collector: UsageCollector) -> None:
             event["cost_usd"],
         )
 
+    if collector.failed_count > 0:
+        logger.warning(
+            "사용량 추적 실패: %d건",
+            collector.failed_count,
+        )
+
 
 async def _cmd_run(args: argparse.Namespace) -> int:
     """파이프라인 실행."""

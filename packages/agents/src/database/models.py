@@ -136,7 +136,9 @@ class UsageEventModel(Base):
     completion_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, index=True, default=lambda: datetime.now(UTC)
+    )
 
     def to_dict(self) -> dict:
         """딕셔너리로 변환합니다."""

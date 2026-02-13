@@ -117,6 +117,10 @@ class TestUsageCollector:
         collector = UsageCollector()
         assert collector.events == []
 
+    def test_초기_failed_count(self):
+        collector = UsageCollector()
+        assert collector.failed_count == 0
+
     def test_create_callback(self):
         collector = UsageCollector()
         cb = collector.create_callback("script_writer", "anthropic")
@@ -230,6 +234,20 @@ class TestUsageTrackingCallback:
         assert event["prompt_tokens"] == 0
         assert event["completion_tokens"] == 0
 
+    def test_on_llm_end_예외_시_failed_count_증가(self):
+        collector = UsageCollector()
+        cb = collector.create_callback("test", "openai")
+
+        response = MagicMock()
+        # llm_output.get()이 예외를 발생시키도록 설정
+        response.llm_output = MagicMock()
+        response.llm_output.get = MagicMock(side_effect=RuntimeError("test error"))
+
+        cb.on_llm_end(response)
+
+        assert len(collector.events) == 0
+        assert collector.failed_count == 1
+
     def test_on_llm_end_total_tokens_자동_계산(self):
         collector = UsageCollector()
         cb = collector.create_callback("test", "openai")
@@ -262,6 +280,25 @@ class TestLogUsageSummary:
         with caplog.at_level(logging.INFO, logger="src.cli"):
             _log_usage_summary(collector)
         assert "LLM 사용량" not in caplog.text
+
+    def test_실패_있으면_경고_로그(self, caplog):
+        collector = UsageCollector()
+        collector.failed_count = 3
+        collector.events.append(
+            {
+                "agent": "test",
+                "provider": "openai",
+                "model": "gpt-4o",
+                "prompt_tokens": 100,
+                "completion_tokens": 50,
+                "total_tokens": 150,
+                "cost_usd": 0.001,
+            }
+        )
+        with caplog.at_level(logging.WARNING, logger="src.cli"):
+            _log_usage_summary(collector)
+        assert "사용량 추적 실패" in caplog.text
+        assert "3건" in caplog.text
 
     def test_이벤트_있으면_요약_로그(self, caplog):
         collector = UsageCollector()

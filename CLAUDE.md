@@ -44,7 +44,7 @@ This project follows a Council-based development process.
 - **API:** FastAPI + Pydantic v2
 - **Database:** SQLAlchemy 2.0 async + Alembic (SQLite dev / PostgreSQL prod)
 - **Auth:** SHA-256 API Key 인증 + 스코프 기반 권한
-- **Testing:** pytest + pytest-asyncio (399+ 테스트)
+- **Testing:** pytest + pytest-asyncio (401+ 테스트)
 - **Lint:** ruff
 - **Container:** Docker Compose (PostgreSQL 16 + FastAPI)
 - **CI:** GitHub Actions

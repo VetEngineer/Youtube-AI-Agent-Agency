@@ -63,6 +63,7 @@ class UsageCollector:
 
     def __init__(self) -> None:
         self.events: list[dict[str, Any]] = []
+        self.failed_count: int = 0
 
     def create_callback(self, agent: str, provider: str) -> UsageTrackingCallback:
         """에이전트별 콜백을 생성합니다."""
@@ -105,7 +106,12 @@ class UsageTrackingCallback(BaseCallbackHandler):
                 }
             )
         except Exception:
-            logger.exception("토큰 사용량 추출 실패 (파이프라인 계속 진행)")
+            self.collector.failed_count += 1
+            logger.exception(
+                "토큰 사용량 추출 실패: agent=%s, provider=%s",
+                self.agent,
+                self.provider,
+            )
 
 
 # ============================================
