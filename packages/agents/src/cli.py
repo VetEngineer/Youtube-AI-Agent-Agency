@@ -16,6 +16,7 @@ import sys
 from typing import TYPE_CHECKING
 
 from src.shared.config import AppSettings, ChannelRegistry
+from src.shared.llm_clients import UsageCollector
 
 if TYPE_CHECKING:
     from src.orchestrator import AgentRegistry
@@ -32,7 +33,10 @@ def _setup_logging(level: str = "INFO") -> None:
     )
 
 
-def _build_agent_registry(settings: AppSettings) -> AgentRegistry:
+def _build_agent_registry(
+    settings: AppSettings,
+    collector: UsageCollector | None = None,
+) -> AgentRegistry:
     """에이전트 레지스트리를 빌드합니다.
 
     LLM 클라이언트 및 각 에이전트 인스턴스를 생성하여
@@ -53,15 +57,22 @@ def _build_agent_registry(settings: AppSettings) -> AgentRegistry:
 
     channel_registry = ChannelRegistry(settings.channels_dir)
 
-    openai_llm = create_openai_client()
-    anthropic_llm = create_anthropic_client()
+    br_callbacks = [collector.create_callback("brand_researcher", "openai")] if collector else None
+    sw_callbacks = (
+        [collector.create_callback("script_writer", "anthropic")] if collector else None
+    )
+    seo_callbacks = [collector.create_callback("seo_optimizer", "openai")] if collector else None
+
+    brand_researcher_llm = create_openai_client(callbacks=br_callbacks)
+    anthropic_llm = create_anthropic_client(callbacks=sw_callbacks)
+    seo_llm = create_openai_client(callbacks=seo_callbacks)
 
     brand_researcher = BrandResearcherAgent(
-        llm=openai_llm,
+        llm=brand_researcher_llm,
         registry=channel_registry,
     )
     script_writer = ScriptWriterAgent(llm=anthropic_llm)
-    seo_optimizer = SEOOptimizerAgent(llm=openai_llm)
+    seo_optimizer = SEOOptimizerAgent(llm=seo_llm)
     media_editor = MediaEditorAgent()
 
     voice_generator = ElevenLabsVoiceGenerator(api_key=settings.elevenlabs_api_key)

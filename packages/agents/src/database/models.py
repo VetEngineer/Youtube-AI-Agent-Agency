@@ -120,3 +120,35 @@ class AuditLogModel(Base):
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
     duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+
+class UsageEventModel(Base):
+    """LLM 사용량 이벤트."""
+
+    __tablename__ = "usage_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    agent: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    model: Mapped[str] = mapped_column(String(100), nullable=False)
+    prompt_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    def to_dict(self) -> dict:
+        """딕셔너리로 변환합니다."""
+        return {
+            "id": self.id,
+            "run_id": self.run_id,
+            "agent": self.agent,
+            "provider": self.provider,
+            "model": self.model,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "total_tokens": self.total_tokens,
+            "cost_usd": self.cost_usd,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

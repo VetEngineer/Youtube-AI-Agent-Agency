@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models import ApiKeyModel, AuditLogModel, PipelineRunModel
+from src.database.models import ApiKeyModel, AuditLogModel, PipelineRunModel, UsageEventModel
 
 
 class RunRepository:
@@ -333,3 +333,175 @@ class AuditLogRepository:
         query = select(func.count(AuditLogModel.id)).where(*conditions)
         result = await self._session.execute(query)
         return result.scalar_one()
+
+
+class UsageRepository:
+    """LLM 사용량 저장소."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        event_id: str,
+        run_id: str,
+        agent: str,
+        provider: str,
+        model: str,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        total_tokens: int = 0,
+        cost_usd: float = 0.0,
+    ) -> UsageEventModel:
+        """사용량 이벤트를 생성합니다."""
+        event = UsageEventModel(
+            id=event_id,
+            run_id=run_id,
+            agent=agent,
+            provider=provider,
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            cost_usd=cost_usd,
+        )
+        self._session.add(event)
+        await self._session.flush()
+        return event
+
+    async def list_by_run(self, run_id: str) -> list[UsageEventModel]:
+        """특정 run의 사용량 이벤트를 조회합니다."""
+        result = await self._session.execute(
+            select(UsageEventModel)
+            .where(UsageEventModel.run_id == run_id)
+            .order_by(UsageEventModel.created_at.asc())
+        )
+        return list(result.scalars().all())
+
+    def _build_filter_query(
+        self,
+        run_id: str | None = None,
+        agent: str | None = None,
+        provider: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> list:
+        """필터 조건을 생성합니다."""
+        conditions = []
+        if run_id is not None:
+            conditions.append(UsageEventModel.run_id == run_id)
+        if agent is not None:
+            conditions.append(UsageEventModel.agent == agent)
+        if provider is not None:
+            conditions.append(UsageEventModel.provider == provider)
+        if date_from is not None:
+            conditions.append(UsageEventModel.created_at >= date_from)
+        if date_to is not None:
+            conditions.append(UsageEventModel.created_at <= date_to)
+        return conditions
+
+    async def list_with_filters(
+        self,
+        run_id: str | None = None,
+        agent: str | None = None,
+        provider: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[UsageEventModel]:
+        """필터링과 페이지네이션을 지원하는 목록 조회."""
+        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to)
+        query = (
+            select(UsageEventModel)
+            .where(*conditions)
+            .order_by(UsageEventModel.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self._session.execute(query)
+        return list(result.scalars().all())
+
+    async def count_with_filters(
+        self,
+        run_id: str | None = None,
+        agent: str | None = None,
+        provider: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> int:
+        """필터링된 결과의 총 개수를 반환합니다."""
+        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to)
+        query = select(func.count(UsageEventModel.id)).where(*conditions)
+        result = await self._session.execute(query)
+        return result.scalar_one()
+
+    async def get_summary(
+        self,
+        run_id: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> dict[str, Any]:
+        """집계 통계를 조회합니다."""
+        conditions = self._build_filter_query(run_id=run_id, date_from=date_from, date_to=date_to)
+
+        # 총합
+        totals_query = select(
+            func.coalesce(func.sum(UsageEventModel.cost_usd), 0.0).label("total_cost"),
+            func.coalesce(func.sum(UsageEventModel.total_tokens), 0).label("total_tokens"),
+        ).where(*conditions)
+        totals = await self._session.execute(totals_query)
+        row = totals.one()
+        total_cost = float(row.total_cost)
+        total_tokens = int(row.total_tokens)
+
+        # by_agent
+        agent_query = (
+            select(
+                UsageEventModel.agent,
+                func.sum(UsageEventModel.cost_usd).label("cost"),
+            )
+            .where(*conditions)
+            .group_by(UsageEventModel.agent)
+        )
+        agent_result = await self._session.execute(agent_query)
+        by_agent = {r.agent: float(r.cost) for r in agent_result.all()}
+
+        # by_provider
+        provider_query = (
+            select(
+                UsageEventModel.provider,
+                func.sum(UsageEventModel.cost_usd).label("cost"),
+            )
+            .where(*conditions)
+            .group_by(UsageEventModel.provider)
+        )
+        provider_result = await self._session.execute(provider_query)
+        by_provider = {r.provider: float(r.cost) for r in provider_result.all()}
+
+        # by_model
+        model_query = (
+            select(
+                UsageEventModel.model,
+                func.sum(UsageEventModel.cost_usd).label("cost"),
+            )
+            .where(*conditions)
+            .group_by(UsageEventModel.model)
+        )
+        model_result = await self._session.execute(model_query)
+        by_model = {r.model: float(r.cost) for r in model_result.all()}
+
+        return {
+            "total_cost_usd": total_cost,
+            "total_tokens": total_tokens,
+            "by_agent": by_agent,
+            "by_provider": by_provider,
+            "by_model": by_model,
+        }
+
+    async def get_total_cost(self) -> float:
+        """Dashboard용 총 비용을 조회합니다."""
+        result = await self._session.execute(
+            select(func.coalesce(func.sum(UsageEventModel.cost_usd), 0.0))
+        )
+        return float(result.scalar_one())

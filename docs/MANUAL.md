@@ -7,14 +7,15 @@
 3. [API 서버](#3-api-서버)
 4. [인증 및 권한](#4-인증-및-권한)
 5. [채널 관리](#5-채널-관리)
-6. [데이터베이스 및 마이그레이션](#6-데이터베이스-및-마이그레이션)
-7. [Docker 실행](#7-docker-실행)
-8. [Makefile 명령어 레퍼런스](#8-makefile-명령어-레퍼런스)
-9. [프로젝트 구조](#9-프로젝트-구조)
-10. [환경변수 레퍼런스](#10-환경변수-레퍼런스)
-11. [에이전트 아키텍처 상세](#11-에이전트-아키텍처-상세)
-12. [트러블슈팅](#12-트러블슈팅)
-13. [FAQ](#13-faq)
+6. [LLM 비용/사용량 추적](#6-llm-비용사용량-추적)
+7. [데이터베이스 및 마이그레이션](#7-데이터베이스-및-마이그레이션)
+8. [Docker 실행](#8-docker-실행)
+9. [Makefile 명령어 레퍼런스](#9-makefile-명령어-레퍼런스)
+10. [프로젝트 구조](#10-프로젝트-구조)
+11. [환경변수 레퍼런스](#11-환경변수-레퍼런스)
+12. [에이전트 아키텍처 상세](#12-에이전트-아키텍처-상세)
+13. [트러블슈팅](#13-트러블슈팅)
+14. [FAQ](#14-faq)
 
 ---
 
@@ -491,6 +492,131 @@ curl "http://localhost:8000/api/v1/admin/audit-logs?method=POST&limit=50" \
 | `limit` | int | 100 | 페이지당 결과 수 (1~1000) |
 | `offset` | int | 0 | 건너뛸 결과 수 |
 
+#### GET /api/v1/usage/events
+
+LLM 사용량 이벤트 목록을 조회합니다.
+
+```bash
+# 전체 조회
+curl http://localhost:8000/api/v1/usage/events \
+  -H "X-API-Key: yaa_xxxxx..."
+
+# 특정 파이프라인 실행의 사용량
+curl "http://localhost:8000/api/v1/usage/events?run_id=550e8400-..." \
+  -H "X-API-Key: yaa_xxxxx..."
+
+# 에이전트별 필터링
+curl "http://localhost:8000/api/v1/usage/events?agent=script_writer&provider=anthropic" \
+  -H "X-API-Key: yaa_xxxxx..."
+```
+
+**쿼리 파라미터:**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|----------|------|--------|------|
+| `run_id` | string | - | 파이프라인 실행 ID 필터 |
+| `agent` | string | - | 에이전트명 필터 (brand_researcher, script_writer, seo_optimizer) |
+| `provider` | string | - | 프로바이더 필터 (openai, anthropic) |
+| `date_from` | datetime | - | 시작 일시 (ISO 8601) |
+| `date_to` | datetime | - | 종료 일시 (ISO 8601) |
+| `limit` | int | 20 | 페이지당 결과 수 (1~100) |
+| `offset` | int | 0 | 건너뛸 결과 수 |
+
+**응답:**
+
+```json
+{
+  "events": [
+    {
+      "id": "evt-uuid-...",
+      "run_id": "550e8400-...",
+      "agent": "script_writer",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-20250514",
+      "prompt_tokens": 2500,
+      "completion_tokens": 1200,
+      "total_tokens": 3700,
+      "cost_usd": 0.0255,
+      "created_at": "2026-02-12T10:30:00"
+    }
+  ],
+  "total": 1,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+#### GET /api/v1/usage/summary
+
+LLM 사용량 집계 통계를 반환합니다.
+
+```bash
+# 전체 통계
+curl http://localhost:8000/api/v1/usage/summary \
+  -H "X-API-Key: yaa_xxxxx..."
+
+# 특정 실행의 통계
+curl "http://localhost:8000/api/v1/usage/summary?run_id=550e8400-..." \
+  -H "X-API-Key: yaa_xxxxx..."
+
+# 기간별 통계
+curl "http://localhost:8000/api/v1/usage/summary?date_from=2026-02-01T00:00:00&date_to=2026-02-28T23:59:59" \
+  -H "X-API-Key: yaa_xxxxx..."
+```
+
+**쿼리 파라미터:**
+
+| 파라미터 | 타입 | 기본값 | 설명 |
+|----------|------|--------|------|
+| `run_id` | string | - | 파이프라인 실행 ID 필터 |
+| `date_from` | datetime | - | 시작 일시 (ISO 8601) |
+| `date_to` | datetime | - | 종료 일시 (ISO 8601) |
+
+**응답:**
+
+```json
+{
+  "total_cost_usd": 0.0855,
+  "total_tokens": 15200,
+  "by_agent": {
+    "brand_researcher": 0.0125,
+    "script_writer": 0.0530,
+    "seo_optimizer": 0.0200
+  },
+  "by_provider": {
+    "openai": 0.0325,
+    "anthropic": 0.0530
+  },
+  "by_model": {
+    "gpt-4o": 0.0325,
+    "claude-sonnet-4-20250514": 0.0530
+  }
+}
+```
+
+#### GET /api/v1/dashboard/summary
+
+대시보드 요약 통계를 반환합니다. `estimated_cost_usd` 필드에 실제 LLM 비용이 포함됩니다.
+
+```bash
+curl http://localhost:8000/api/v1/dashboard/summary \
+  -H "X-API-Key: yaa_xxxxx..."
+```
+
+**응답:**
+
+```json
+{
+  "total_runs": 25,
+  "active_runs": 1,
+  "success_runs": 20,
+  "failed_runs": 4,
+  "avg_duration_sec": 120.5,
+  "estimated_cost_usd": 1.234,
+  "recent_runs": [...]
+}
+```
+
 ---
 
 ## 4. 인증 및 권한
@@ -695,7 +821,50 @@ curl -X DELETE http://localhost:8000/api/v1/channels/new-channel
 
 ---
 
-## 6. 데이터베이스 및 마이그레이션
+## 6. LLM 비용/사용량 추적
+
+파이프라인 실행 시 LLM(OpenAI GPT-4o, Anthropic Claude) 호출마다 토큰 사용량과 비용이 자동으로 기록됩니다.
+
+### 동작 원리
+
+1. 파이프라인이 시작되면 `UsageCollector`가 생성됩니다.
+2. 각 에이전트(brand_researcher, script_writer, seo_optimizer)에 LangChain 콜백이 등록됩니다.
+3. LLM 호출이 완료될 때마다 토큰 수와 비용이 메모리에 수집됩니다.
+4. 파이프라인 완료(또는 실패) 후 수집된 이벤트가 `usage_events` 테이블에 일괄 저장됩니다.
+
+### 지원 모델 및 가격표
+
+| 프로바이더 | 모델 | Prompt ($/1M tokens) | Completion ($/1M tokens) |
+|-----------|------|---------------------|-------------------------|
+| OpenAI | gpt-4o | $2.50 | $10.00 |
+| OpenAI | gpt-4o-mini | $0.15 | $0.60 |
+| Anthropic | claude-sonnet-4-20250514 | $3.00 | $15.00 |
+
+> 가격표에 없는 모델은 비용 $0.00으로 기록되며 warning 로그가 출력됩니다.
+
+### API로 사용량 조회
+
+```bash
+# 전체 사용량 이벤트
+curl http://localhost:8000/api/v1/usage/events \
+  -H "X-API-Key: yaa_xxxxx..."
+
+# 집계 통계
+curl http://localhost:8000/api/v1/usage/summary \
+  -H "X-API-Key: yaa_xxxxx..."
+
+# 특정 파이프라인 실행의 비용
+curl "http://localhost:8000/api/v1/usage/summary?run_id=550e8400-..." \
+  -H "X-API-Key: yaa_xxxxx..."
+```
+
+### 대시보드 연동
+
+`GET /api/v1/dashboard/summary`의 `estimated_cost_usd` 필드에서 전체 LLM 비용 합계를 확인할 수 있습니다. 사용량 데이터가 없으면 `null`을 반환합니다.
+
+---
+
+## 7. 데이터베이스 및 마이그레이션
 
 ### 데이터베이스
 
@@ -731,10 +900,11 @@ make db-history
 | `pipeline_runs` | 파이프라인 실행 이력 (상태, 결과, 에러) |
 | `api_keys` | API 키 (해시, 스코프, 활성 상태) |
 | `audit_logs` | 감사 로그 (요청 메서드, 경로, 응답 코드, 소요 시간) |
+| `usage_events` | LLM 사용량 이벤트 (에이전트, 모델, 토큰, 비용) |
 
 ---
 
-## 7. Docker 실행
+## 8. Docker 실행
 
 ### 이미지 빌드
 
@@ -776,7 +946,7 @@ Docker 컨테이너는 30초 간격으로 `/api/v1/health` 엔드포인트를 �
 
 ---
 
-## 8. Makefile 명령어 레퍼런스
+## 9. Makefile 명령어 레퍼런스
 
 ```bash
 make help    # 사용 가능한 명령어 목록
@@ -805,7 +975,7 @@ make help    # 사용 가능한 명령어 목록
 
 ---
 
-## 9. 프로젝트 구조
+## 10. 프로젝트 구조
 
 ```
 Youtube-AI-Agent-Agency/
@@ -864,6 +1034,8 @@ Youtube-AI-Agent-Agency/
 │   │           ├── admin.py          # API 키 관리 + 감사 로그
 │   │           ├── pipeline.py       # 파이프라인 실행 + 이력
 │   │           ├── channels.py       # 채널 CRUD
+│   │           ├── dashboard.py      # 대시보드 요약 통계
+│   │           ├── usage.py          # LLM 사용량/비용 조회
 │   │           └── status.py         # 상태 조회 + 헬스체크
 │   ├── alembic/                       # DB 마이그레이션
 │   │   ├── env.py                    # 마이그레이션 환경
@@ -887,7 +1059,7 @@ Brand Research → Script Writing → SEO Optimization → Media Generation → 
 
 ---
 
-## 10. 환경변수 레퍼런스
+## 11. 환경변수 레퍼런스
 
 `.env.example` 파일을 `.env`로 복사한 후 실제 값을 입력합니다.
 
@@ -931,7 +1103,7 @@ cp .env.example .env
 
 ---
 
-## 11. 에이전트 아키텍처 상세
+## 12. 에이전트 아키텍처 상세
 
 ### 파이프라인 아키텍처
 
@@ -1067,7 +1239,7 @@ DRAFT → REVIEW → APPROVED → PUBLISHED
 
 ---
 
-## 12. 트러블슈팅
+## 13. 트러블슈팅
 
 ### 설치 관련
 
@@ -1219,7 +1391,7 @@ youtube-agent run --channel my-channel --topic "주제"
 
 ---
 
-## 13. FAQ
+## 14. FAQ
 
 ### 일반
 
@@ -1234,6 +1406,20 @@ A: 기본 설정은 한국어(`ko`)이지만, `config.yaml`의 `language` 필드
 **Q: 한 번에 여러 채널의 콘텐츠를 생성할 수 있나요?**
 
 A: 현재는 채널별로 개별 실행해야 합니다. 멀티 채널 배치 처리는 향후 업데이트에서 지원 예정입니다.
+
+### 비용 추적
+
+**Q: LLM 사용 비용은 어떻게 확인하나요?**
+
+A: `GET /api/v1/usage/summary`에서 전체/에이전트별/모델별 비용 집계를 확인할 수 있습니다. 개별 이벤트는 `GET /api/v1/usage/events`에서 조회합니다. 대시보드(`GET /api/v1/dashboard/summary`)의 `estimated_cost_usd` 필드에서도 총 비용을 볼 수 있습니다.
+
+**Q: 비용 추적이 파이프라인 성능에 영향을 주나요?**
+
+A: 아닙니다. 토큰/비용 데이터는 LangChain 콜백으로 메모리에 수집되고, 파이프라인 완료 후 DB에 일괄 저장됩니다. 콜백에서 에러가 발생해도 파이프라인 실행은 중단되지 않습니다.
+
+**Q: 파이프라인이 실패하면 비용은 기록되나요?**
+
+A: 네. 실패 전까지 호출된 LLM 비용은 정상적으로 기록됩니다.
 
 ### 파이프라인
 
