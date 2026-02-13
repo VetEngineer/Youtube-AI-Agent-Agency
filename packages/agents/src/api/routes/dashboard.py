@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.auth import require_api_key
 from src.api.schemas import DashboardSummary, PipelineRunSummary
 from src.database.engine import get_db_session
-from src.database.repositories import RunRepository
+from src.database.repositories import RunRepository, UsageRepository
 
 router = APIRouter()
 
@@ -26,16 +26,20 @@ async def get_dashboard_summary(
     - success_runs: 성공한 실행 수 (completed)
     - failed_runs: 실패한 실행 수 (failed)
     - avg_duration_sec: 완료된 실행의 평균 소요시간 (초)
-    - estimated_cost_usd: 예상 비용 (P8-3 전까지 null)
+    - estimated_cost_usd: 총 LLM 비용 (사용량 없으면 null)
     - recent_runs: 최근 실행 목록 (기본 5개)
     """
     repo = RunRepository(session)
+    usage_repo = UsageRepository(session)
 
     # 통계 조회
     stats = await repo.get_stats()
 
     # 평균 소요시간
     avg_duration = await repo.get_avg_duration()
+
+    # 총 비용
+    total_cost = await usage_repo.get_total_cost()
 
     # 최근 실행 목록
     recent = await repo.list_recent(limit=limit)
@@ -58,6 +62,6 @@ async def get_dashboard_summary(
         success_runs=stats["completed"],
         failed_runs=stats["failed"],
         avg_duration_sec=avg_duration,
-        estimated_cost_usd=None,  # P8-3에서 구현
+        estimated_cost_usd=total_cost if total_cost > 0 else None,
         recent_runs=recent_runs,
     )

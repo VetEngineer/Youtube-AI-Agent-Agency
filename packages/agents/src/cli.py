@@ -16,6 +16,7 @@ import sys
 from typing import TYPE_CHECKING
 
 from src.shared.config import AppSettings, ChannelRegistry
+from src.shared.llm_clients import UsageCollector
 
 if TYPE_CHECKING:
     from src.orchestrator import AgentRegistry
@@ -32,7 +33,10 @@ def _setup_logging(level: str = "INFO") -> None:
     )
 
 
-def _build_agent_registry(settings: AppSettings) -> AgentRegistry:
+def _build_agent_registry(
+    settings: AppSettings,
+    collector: UsageCollector | None = None,
+) -> AgentRegistry:
     """에이전트 레지스트리를 빌드합니다.
 
     LLM 클라이언트 및 각 에이전트 인스턴스를 생성하여
@@ -53,15 +57,22 @@ def _build_agent_registry(settings: AppSettings) -> AgentRegistry:
 
     channel_registry = ChannelRegistry(settings.channels_dir)
 
-    openai_llm = create_openai_client()
-    anthropic_llm = create_anthropic_client()
+    br_callbacks = [collector.create_callback("brand_researcher", "openai")] if collector else None
+    sw_callbacks = (
+        [collector.create_callback("script_writer", "anthropic")] if collector else None
+    )
+    seo_callbacks = [collector.create_callback("seo_optimizer", "openai")] if collector else None
+
+    brand_researcher_llm = create_openai_client(callbacks=br_callbacks)
+    anthropic_llm = create_anthropic_client(callbacks=sw_callbacks)
+    seo_llm = create_openai_client(callbacks=seo_callbacks)
 
     brand_researcher = BrandResearcherAgent(
-        llm=openai_llm,
+        llm=brand_researcher_llm,
         registry=channel_registry,
     )
     script_writer = ScriptWriterAgent(llm=anthropic_llm)
-    seo_optimizer = SEOOptimizerAgent(llm=openai_llm)
+    seo_optimizer = SEOOptimizerAgent(llm=seo_llm)
     media_editor = MediaEditorAgent()
 
     voice_generator = ElevenLabsVoiceGenerator(api_key=settings.elevenlabs_api_key)
@@ -88,6 +99,37 @@ def _build_agent_registry(settings: AppSettings) -> AgentRegistry:
     )
 
 
+def _log_usage_summary(collector: UsageCollector) -> None:
+    """수집된 LLM 사용량 요약을 로그로 출력합니다."""
+    if not collector.events:
+        return
+
+    total_cost = sum(e["cost_usd"] for e in collector.events)
+    total_tokens = sum(e["total_tokens"] for e in collector.events)
+
+    logger.info(
+        "LLM 사용량: calls=%d, tokens=%d, cost=$%.6f",
+        len(collector.events),
+        total_tokens,
+        total_cost,
+    )
+    for event in collector.events:
+        logger.debug(
+            "  %s (%s/%s): tokens=%d, cost=$%.6f",
+            event["agent"],
+            event["provider"],
+            event["model"],
+            event["total_tokens"],
+            event["cost_usd"],
+        )
+
+    if collector.failed_count > 0:
+        logger.warning(
+            "사용량 추적 실패: %d건",
+            collector.failed_count,
+        )
+
+
 async def _cmd_run(args: argparse.Namespace) -> int:
     """파이프라인 실행."""
     from src.orchestrator import compile_pipeline, create_initial_state
@@ -97,7 +139,8 @@ async def _cmd_run(args: argparse.Namespace) -> int:
 
     logger.info("파이프라인 시작: channel=%s, topic=%s", args.channel, args.topic)
 
-    agent_registry = _build_agent_registry(settings)
+    collector = UsageCollector()
+    agent_registry = _build_agent_registry(settings, collector=collector)
     pipeline = compile_pipeline(agent_registry)
 
     initial_state = create_initial_state(
@@ -108,6 +151,8 @@ async def _cmd_run(args: argparse.Namespace) -> int:
 
     try:
         final_state = await pipeline.ainvoke(initial_state)
+
+        _log_usage_summary(collector)
 
         status = final_state.get("status")
         if status and status.value == "failed":
@@ -120,6 +165,7 @@ async def _cmd_run(args: argparse.Namespace) -> int:
 
         return 0
     except Exception as exc:
+        _log_usage_summary(collector)
         logger.exception("파이프라인 실행 중 에러: %s", exc)
         return 1
 

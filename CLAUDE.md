@@ -24,7 +24,7 @@ This project follows a Council-based development process.
 
 ## Current Status
 
-**Phase 5 완료** - 핵심 기능 구현 완료 상태
+**Phase 8-3 완료** - LLM 비용/사용량 추적 시스템 구현 완료
 
 | Phase | 설명 | 상태 |
 |-------|------|------|
@@ -32,6 +32,8 @@ This project follows a Council-based development process.
 | Phase 3 | E2E 실행 환경 구축 (Docker, CI) | 완료 |
 | Phase 4 | DB 영속화, API 인증, 미들웨어 | 완료 |
 | Phase 5 | API CRUD 완성, Alembic 마이그레이션 | 완료 |
+| Phase 6 | Web Dashboard (Frontend) | 완료 |
+| Phase 8-3 | LLM 비용/사용량 추적 | 완료 |
 
 ## Tech Stack
 
@@ -42,7 +44,7 @@ This project follows a Council-based development process.
 - **API:** FastAPI + Pydantic v2
 - **Database:** SQLAlchemy 2.0 async + Alembic (SQLite dev / PostgreSQL prod)
 - **Auth:** SHA-256 API Key 인증 + 스코프 기반 권한
-- **Testing:** pytest + pytest-asyncio (371+ 테스트)
+- **Testing:** pytest + pytest-asyncio (401+ 테스트)
 - **Lint:** ruff
 - **Container:** Docker Compose (PostgreSQL 16 + FastAPI)
 - **CI:** GitHub Actions
@@ -71,7 +73,9 @@ packages/agents/src/
 │   └── routes/             # 엔드포인트
 │       ├── admin.py        # API 키 관리 + 감사 로그
 │       ├── channels.py     # 채널 CRUD
+│       ├── dashboard.py    # 대시보드 요약 통계
 │       ├── pipeline.py     # 파이프라인 실행 + 이력
+│       ├── usage.py        # LLM 사용량/비용 조회
 │       └── status.py       # 상태 조회 + 헬스체크
 ├── database/               # 데이터 영속화
 │   ├── engine.py           # 비동기 세션 팩토리
@@ -94,3 +98,4 @@ packages/agents/src/
 - **API Key Auth:** `yaa_` 접두사 + SHA-256 해싱, `require_api_key` / `require_admin_scope` 의존성
 - **ChannelRegistry:** YAML 기반 채널 설정 관리 (파일시스템 + 캐싱)
 - **Alembic:** `packages/agents/alembic/`에서 DB 스키마 마이그레이션 관리
+- **UsageCollector:** LangChain 콜백 기반 LLM 토큰/비용 인메모리 수집 → 파이프라인 완료 후 DB 일괄 저장

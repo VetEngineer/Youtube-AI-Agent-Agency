@@ -90,7 +90,9 @@ class DashboardSummary(BaseModel):
     success_runs: int = Field(..., description="성공 실행 수")
     failed_runs: int = Field(..., description="실패 실행 수")
     avg_duration_sec: float | None = Field(None, description="평균 소요시간 (초)")
-    estimated_cost_usd: float | None = Field(None, description="예상 비용 (USD, P8-3 전까지 null)")
+    estimated_cost_usd: float | None = Field(
+        None, description="총 LLM 비용 (USD, 사용량이 없으면 null)"
+    )
     recent_runs: list[PipelineRunSummary] = Field(
         default_factory=list, description="최근 실행 목록"
     )
@@ -211,3 +213,42 @@ class AuditLogListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+# ============================================
+# 사용량
+# ============================================
+
+
+class UsageEventResponse(BaseModel):
+    """LLM 사용량 이벤트."""
+
+    id: str
+    run_id: str
+    agent: str
+    provider: str
+    model: str
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    cost_usd: float
+    created_at: str | None = None
+
+
+class UsageListResponse(BaseModel):
+    """사용량 이벤트 목록 응답."""
+
+    events: list[UsageEventResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class UsageSummaryResponse(BaseModel):
+    """사용량 집계 통계."""
+
+    total_cost_usd: float = Field(..., description="총 비용 (USD)")
+    total_tokens: int = Field(..., description="총 토큰 수")
+    by_agent: dict[str, float] = Field(default_factory=dict, description="에이전트별 비용")
+    by_provider: dict[str, float] = Field(default_factory=dict, description="프로바이더별 비용")
+    by_model: dict[str, float] = Field(default_factory=dict, description="모델별 비용")

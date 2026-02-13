@@ -19,8 +19,9 @@ from src.api.schemas import (
     PipelineRunSummary,
 )
 from src.database.engine import get_db_session, get_session_factory
-from src.database.repositories import RunRepository
+from src.database.repositories import RunRepository, UsageRepository
 from src.shared.config import AppSettings, ChannelRegistry
+from src.shared.llm_clients import UsageCollector
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -51,8 +52,10 @@ async def _execute_pipeline(
         await repo.update_status(run_id, status="running")
         await session.commit()
 
+    collector = UsageCollector()
+
     try:
-        agent_registry = _build_agent_registry(settings)
+        agent_registry = _build_agent_registry(settings, collector=collector)
         pipeline = compile_pipeline(agent_registry)
         initial_state = create_initial_state(
             channel_id=channel_id,
@@ -89,6 +92,24 @@ async def _execute_pipeline(
                 errors=[str(exc)],
             )
             await session.commit()
+
+    # 수집된 사용량 이벤트를 DB에 저장 (성공/실패 무관)
+    if collector.events:
+        try:
+            async with session_factory() as session:
+                usage_repo = UsageRepository(session)
+                for event in collector.events:
+                    await usage_repo.create(
+                        event_id=str(uuid.uuid4()),
+                        run_id=run_id,
+                        **event,
+                    )
+                await session.commit()
+            logger.info(
+                "사용량 이벤트 저장: run_id=%s, count=%d", run_id, len(collector.events)
+            )
+        except Exception:
+            logger.exception("사용량 이벤트 저장 실패: run_id=%s", run_id)
 
 
 @router.post("/run", response_model=PipelineRunResponse)
