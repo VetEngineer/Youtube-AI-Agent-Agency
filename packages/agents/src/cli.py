@@ -67,9 +67,18 @@ def _build_agent_registry(
     anthropic_llm = create_anthropic_client(callbacks=sw_callbacks)
     seo_llm = create_openai_client(callbacks=seo_callbacks)
 
+    # RAG_ENABLED 환경변수 기반 활성화
+    try:
+        from src.brand_researcher.rag import RAGConfig
+
+        rag_enabled = RAGConfig().rag_enabled
+    except ImportError:
+        rag_enabled = False
+
     brand_researcher = BrandResearcherAgent(
         llm=brand_researcher_llm,
         registry=channel_registry,
+        rag_enabled=rag_enabled,
     )
     script_writer = ScriptWriterAgent(llm=anthropic_llm)
     seo_optimizer = SEOOptimizerAgent(llm=seo_llm)
