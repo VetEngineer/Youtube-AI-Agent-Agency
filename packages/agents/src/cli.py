@@ -99,6 +99,31 @@ def _build_agent_registry(
     )
 
 
+def _log_usage_summary(collector: UsageCollector) -> None:
+    """수집된 LLM 사용량 요약을 로그로 출력합니다."""
+    if not collector.events:
+        return
+
+    total_cost = sum(e["cost_usd"] for e in collector.events)
+    total_tokens = sum(e["total_tokens"] for e in collector.events)
+
+    logger.info(
+        "LLM 사용량: calls=%d, tokens=%d, cost=$%.6f",
+        len(collector.events),
+        total_tokens,
+        total_cost,
+    )
+    for event in collector.events:
+        logger.debug(
+            "  %s (%s/%s): tokens=%d, cost=$%.6f",
+            event["agent"],
+            event["provider"],
+            event["model"],
+            event["total_tokens"],
+            event["cost_usd"],
+        )
+
+
 async def _cmd_run(args: argparse.Namespace) -> int:
     """파이프라인 실행."""
     from src.orchestrator import compile_pipeline, create_initial_state
@@ -108,7 +133,8 @@ async def _cmd_run(args: argparse.Namespace) -> int:
 
     logger.info("파이프라인 시작: channel=%s, topic=%s", args.channel, args.topic)
 
-    agent_registry = _build_agent_registry(settings)
+    collector = UsageCollector()
+    agent_registry = _build_agent_registry(settings, collector=collector)
     pipeline = compile_pipeline(agent_registry)
 
     initial_state = create_initial_state(
@@ -119,6 +145,8 @@ async def _cmd_run(args: argparse.Namespace) -> int:
 
     try:
         final_state = await pipeline.ainvoke(initial_state)
+
+        _log_usage_summary(collector)
 
         status = final_state.get("status")
         if status and status.value == "failed":
@@ -131,6 +159,7 @@ async def _cmd_run(args: argparse.Namespace) -> int:
 
         return 0
     except Exception as exc:
+        _log_usage_summary(collector)
         logger.exception("파이프라인 실행 중 에러: %s", exc)
         return 1
 

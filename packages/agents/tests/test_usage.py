@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import MagicMock
 
 import pytest
 
+from src.cli import _log_usage_summary
 from src.database.engine import init_db, set_session_factory
 from src.database.models import UsageEventModel
 from src.database.repositories import UsageRepository
@@ -245,6 +247,51 @@ class TestUsageTrackingCallback:
 
         event = collector.events[0]
         assert event["total_tokens"] == 400
+
+
+# ============================================
+# _log_usage_summary 테스트
+# ============================================
+
+
+class TestLogUsageSummary:
+    """CLI 사용량 로그 출력 테스트."""
+
+    def test_이벤트_없으면_로그_안남(self, caplog):
+        collector = UsageCollector()
+        with caplog.at_level(logging.INFO, logger="src.cli"):
+            _log_usage_summary(collector)
+        assert "LLM 사용량" not in caplog.text
+
+    def test_이벤트_있으면_요약_로그(self, caplog):
+        collector = UsageCollector()
+        collector.events.append(
+            {
+                "agent": "brand_researcher",
+                "provider": "openai",
+                "model": "gpt-4o",
+                "prompt_tokens": 500,
+                "completion_tokens": 200,
+                "total_tokens": 700,
+                "cost_usd": 0.0033,
+            }
+        )
+        collector.events.append(
+            {
+                "agent": "script_writer",
+                "provider": "anthropic",
+                "model": "claude-sonnet-4-20250514",
+                "prompt_tokens": 1000,
+                "completion_tokens": 500,
+                "total_tokens": 1500,
+                "cost_usd": 0.0105,
+            }
+        )
+        with caplog.at_level(logging.INFO, logger="src.cli"):
+            _log_usage_summary(collector)
+        assert "LLM 사용량" in caplog.text
+        assert "calls=2" in caplog.text
+        assert "tokens=2200" in caplog.text
 
 
 # ============================================

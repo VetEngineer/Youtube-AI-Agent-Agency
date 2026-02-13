@@ -31,7 +31,7 @@ def upgrade() -> None:
         sa.Column('completion_tokens', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('total_tokens', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('cost_usd', sa.Float(), nullable=False, server_default='0.0'),
-        sa.Column('created_at', sa.DateTime(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
     )
 
 
