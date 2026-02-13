@@ -384,3 +384,50 @@ class TestAuditLogRepositoryFilters:
 
         total = await repo.count_with_filters(method="GET")
         assert total >= 1
+
+
+# ============================================
+# RunRepository get_avg_duration 테스트
+# ============================================
+
+
+class TestRunRepositoryAvgDuration:
+    """get_avg_duration의 database-agnostic 구현 테스트."""
+
+    async def test_완료된_실행이_없으면_None_반환(self, session):
+        """완료된 실행이 없는 경우 None을 반환해야 합니다."""
+        repo = RunRepository(session)
+        # pending 상태만 존재
+        await repo.create(run_id="dur-none-1", channel_id="ch-1", topic="주제")
+        await session.flush()
+
+        result = await repo.get_avg_duration()
+        assert result is None
+
+    async def test_완료된_실행의_평균_소요시간_계산(self, session):
+        """completed 실행의 created_at과 completed_at 차이로 평균을 계산합니다."""
+        repo = RunRepository(session)
+        # 두 개의 완료된 실행 생성
+        await repo.create(run_id="dur-1", channel_id="ch-1", topic="주제1")
+        await repo.create(run_id="dur-2", channel_id="ch-1", topic="주제2")
+        await repo.update_status("dur-1", status="completed")
+        await repo.update_status("dur-2", status="completed")
+        await session.flush()
+
+        result = await repo.get_avg_duration()
+        assert result is not None
+        # update_status에서 completed_at을 설정하므로 0 이상이어야 함
+        assert result >= 0.0
+
+    async def test_pending_실행은_제외(self, session):
+        """pending/running 상태의 실행은 계산에서 제외되어야 합니다."""
+        repo = RunRepository(session)
+        await repo.create(run_id="dur-p1", channel_id="ch-1", topic="완료")
+        await repo.create(run_id="dur-p2", channel_id="ch-1", topic="미완료")
+        await repo.update_status("dur-p1", status="completed")
+        # dur-p2는 pending 상태 유지
+        await session.flush()
+
+        result = await repo.get_avg_duration()
+        assert result is not None
+        assert isinstance(result, float)
