@@ -3,9 +3,38 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+async def _save_usage_events(
+    session_factory: Any,
+    collector: Any,
+    run_id: str,
+) -> None:
+    """수집된 LLM 사용량 이벤트를 DB에 저장합니다."""
+    if not collector.events:
+        return
+
+    try:
+        from src.database.repositories import UsageRepository
+
+        async with session_factory() as session:
+            usage_repo = UsageRepository(session)
+            for event in collector.events:
+                await usage_repo.create(
+                    event_id=str(uuid.uuid4()),
+                    run_id=run_id,
+                    **event,
+                )
+            await session.commit()
+        logger.info(
+            "사용량 이벤트 저장: run_id=%s, count=%d", run_id, len(collector.events)
+        )
+    except Exception:
+        logger.exception("사용량 이벤트 저장 실패: run_id=%s", run_id)
 
 
 async def execute_pipeline_task(
@@ -34,6 +63,7 @@ async def execute_pipeline_task(
     from src.database.repositories import RunRepository
     from src.orchestrator import compile_pipeline, create_initial_state
     from src.shared.config import AppSettings
+    from src.shared.llm_clients import UsageCollector
 
     logger.info("파이프라인 작업 시작: run_id=%s, channel=%s", run_id, channel_id)
 
@@ -48,6 +78,8 @@ async def execute_pipeline_task(
         await repo.update_status(run_id, status="running")
         await session.commit()
 
+    collector = UsageCollector()
+
     try:
         settings = AppSettings()
         channel_registry = ctx.get("channel_registry")
@@ -56,7 +88,7 @@ async def execute_pipeline_task(
 
             channel_registry = ChannelRegistry(settings.channels_dir)
 
-        agent_registry = _build_agent_registry(settings)
+        agent_registry = _build_agent_registry(settings, collector=collector)
         pipeline = compile_pipeline(agent_registry)
         initial_state = create_initial_state(
             channel_id=channel_id,
@@ -87,6 +119,9 @@ async def execute_pipeline_task(
             await repo.update_status(run_id, status="failed", errors=[str(exc)])
             await session.commit()
         return {"status": "failed", "run_id": run_id, "error": str(exc)}
+
+    finally:
+        await _save_usage_events(session_factory, collector, run_id)
 
 
 async def startup(ctx: dict[str, Any]) -> None:
