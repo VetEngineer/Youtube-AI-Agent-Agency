@@ -1,4 +1,4 @@
-.PHONY: help install test test-cov lint format run server clean docker-build docker-up docker-down docker-logs dev-setup db-migrate db-upgrade db-downgrade db-history rag-index worker redis-up redis-down
+.PHONY: help install test test-cov lint format run server clean docker-build docker-up docker-down docker-logs dev-setup db-migrate db-upgrade db-downgrade db-history rag-index worker redis-up redis-down monitoring-up monitoring-down
 
 AGENTS_DIR = packages/agents
 
@@ -86,3 +86,13 @@ redis-up: ## Redis 컨테이너 시작
 
 redis-down: ## Redis 컨테이너 종료
 	docker compose stop redis
+
+# ============================================
+# Monitoring (P8-1+P8-2)
+# ============================================
+
+monitoring-up: ## 모니터링 스택 시작 (Prometheus + Grafana + Loki)
+	docker compose -f docker-compose.yml -f infra/docker-compose.monitoring.yml up -d prometheus grafana loki
+
+monitoring-down: ## 모니터링 스택 종료
+	docker compose -f docker-compose.yml -f infra/docker-compose.monitoring.yml stop prometheus grafana loki
