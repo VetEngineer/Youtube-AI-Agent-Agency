@@ -83,6 +83,7 @@ async def create_api_key(
 def _decode_jwt(token: str, settings: AppSettings) -> dict | None:
     """JWT 토큰을 디코딩합니다."""
     if not settings.jwt_secret:
+        logger.error("JWT_SECRET이 구성되지 않았지만 JWT 토큰이 제공됨")
         return None
     try:
         import jwt
@@ -260,7 +261,12 @@ async def require_admin_scope(
     if ctx.api_key_id:
         repo = ApiKeyRepository(session)
         api_key = await repo.get_by_id(ctx.api_key_id)
-        if api_key is None or "admin" not in api_key.scopes:
+        if api_key is None or not api_key.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="API 키가 비활성화되었습니다.",
+            )
+        if "admin" not in api_key.scopes:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="관리자 권한이 필요합니다.",

@@ -128,12 +128,16 @@ async def run_pipeline(
     Redis가 사용 가능하면 Arq 큐를 통해 워커에서 실행하고,
     Redis가 없으면 FastAPI BackgroundTasks로 폴백합니다.
     """
-    # 요금제 파이프라인 한도 검사
+    # 요금제 파이프라인 한도 검사 (인증 활성 시 workspace 필수)
     if auth.workspace_id:
         ws_repo = WorkspaceRepository(session)
         workspace = await ws_repo.get(auth.workspace_id)
         if workspace:
             await check_pipeline_quota(workspace, session)
+    elif auth.auth_method != "none":
+        raise HTTPException(
+            status_code=400, detail="파이프라인 실행에는 워크스페이스가 필요합니다."
+        )
 
     run_id = str(uuid.uuid4())
 
@@ -241,7 +245,7 @@ async def get_pipeline_run(
         raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
 
     # workspace 격리: 자기 workspace의 run만 접근 가능
-    if auth.workspace_id and run.workspace_id != auth.workspace_id:
+    if run.workspace_id and run.workspace_id != auth.workspace_id:
         raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
 
     return PipelineRunDetail(

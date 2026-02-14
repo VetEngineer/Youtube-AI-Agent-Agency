@@ -83,6 +83,7 @@ async def oauth_callback(
             owner_id=user.id,
         )
         workspace_id = ws_id
+        await session.commit()
         logger.info("새 사용자 생성: email=%s, workspace_id=%s", user.email, ws_id)
     else:
         workspaces = await ws_repo.list_by_owner(user.id)

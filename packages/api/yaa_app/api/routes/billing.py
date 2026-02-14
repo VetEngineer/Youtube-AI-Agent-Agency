@@ -242,7 +242,7 @@ async def stripe_webhook(
 
     if not settings.stripe_webhook_secret:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="웹훅 시크릿이 구성되지 않았습니다.",
         )
 
@@ -269,7 +269,7 @@ async def stripe_webhook(
     if event_type == "checkout.session.completed":
         await _handle_checkout_completed(data, session)
     elif event_type == "customer.subscription.updated":
-        await _handle_subscription_updated(data, session)
+        await _handle_subscription_updated(data, session, settings)
     elif event_type == "customer.subscription.deleted":
         await _handle_subscription_deleted(data, session)
 
@@ -332,7 +332,7 @@ async def _handle_checkout_completed(
 
 
 async def _handle_subscription_updated(
-    data: dict, session: AsyncSession
+    data: dict, session: AsyncSession, settings: AppSettings | None = None
 ) -> None:
     """customer.subscription.updated 이벤트를 처리합니다."""
     stripe_sub_id = data.get("id")
@@ -376,7 +376,7 @@ async def _handle_subscription_updated(
     if items:
         price_id = items[0].get("price", {}).get("id", "")
         if price_id:
-            update_kwargs["plan"] = _price_id_to_plan(price_id)
+            update_kwargs["plan"] = _price_id_to_plan(price_id, settings)
 
     await sub_repo.update(subscription.id, **update_kwargs)
 
@@ -428,13 +428,18 @@ async def _handle_subscription_deleted(
     logger.info("구독 해지: workspace=%s", subscription.workspace_id)
 
 
-def _price_id_to_plan(price_id: str) -> str:
-    """Stripe Price ID를 요금제 이름으로 변환합니다.
+def _price_id_to_plan(price_id: str, settings: AppSettings | None = None) -> str:
+    """Stripe Price ID를 요금제 이름으로 변환합니다."""
+    if settings:
+        price_map = {
+            settings.stripe_price_pro: "pro",
+            settings.stripe_price_enterprise: "enterprise",
+        }
+        plan = price_map.get(price_id)
+        if plan:
+            return plan
 
-    런타임에 settings에 접근하지 않고, Price ID 접미사로 추론합니다.
-    정확한 매핑이 필요하면 settings를 인자로 받도록 확장할 수 있습니다.
-    """
-    # Price ID에 'enterprise'가 포함되면 enterprise, 아니면 pro
+    # settings 매핑 실패 시 Price ID 접미사로 추론 (폴백)
     if "enterprise" in price_id.lower():
         return "enterprise"
     return "pro"
