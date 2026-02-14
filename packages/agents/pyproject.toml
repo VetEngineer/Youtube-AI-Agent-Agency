@@ -60,6 +60,9 @@ queue = [
     "arq>=0.26",
     "redis>=5.0",
 ]
+monitoring = [
+    "prometheus-client>=0.21",
+]
 dashboard = []
 dev = [
     "pytest>=8.0.0",

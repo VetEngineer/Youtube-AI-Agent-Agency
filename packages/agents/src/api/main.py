@@ -10,8 +10,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.dependencies import get_settings
+from src.api.metrics import setup_metrics
 from src.api.middleware import AuditLogMiddleware, setup_rate_limiting
 from src.api.routes import admin, channels, dashboard, pipeline, status, usage
+from src.shared.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,9 @@ def create_app() -> FastAPI:
     """FastAPI 애플리케이션 인스턴스를 생성합니다."""
     settings = get_settings()
 
+    # 구조화 로깅 초기화
+    setup_logging(log_format=settings.log_format, log_level=settings.log_level)
+
     application = FastAPI(
         title="YouTube AI Agent Agency API",
         description="LangGraph 기반 YouTube 콘텐츠 자동화 파이프라인",
@@ -62,6 +67,9 @@ def create_app() -> FastAPI:
 
     # 감사 로그 미들웨어
     application.add_middleware(AuditLogMiddleware)
+
+    # Prometheus 메트릭 미들웨어 + /metrics 엔드포인트
+    setup_metrics(application)
 
     # Rate Limiting
     setup_rate_limiting(application)

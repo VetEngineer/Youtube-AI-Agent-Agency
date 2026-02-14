@@ -1,0 +1,12 @@
+# Prometheus 설정 - YouTube AI Agent Agency
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "yaa-api"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["agents:8000"]
+        labels:
+          service: "youtube-ai-agents"

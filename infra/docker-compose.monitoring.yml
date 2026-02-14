@@ -1,0 +1,33 @@
+# 모니터링 스택 - docker-compose 오버레이
+# 사용법: docker compose -f docker-compose.yml -f infra/docker-compose.monitoring.yml up -d
+services:
+  prometheus:
+    image: prom/prometheus:v3.2.0
+    container_name: youtube-ai-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.5.1
+    container_name: youtube-ai-grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: youtube-ai-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+    restart: unless-stopped

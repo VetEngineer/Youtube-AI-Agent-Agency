@@ -24,6 +24,7 @@ class AppSettings(BaseSettings):
     youtube_client_secret: str = ""
     channels_dir: str = "./channels"
     log_level: str = "INFO"
+    log_format: str = "text"  # json | text
 
     # 데이터베이스
     database_url: str = "sqlite+aiosqlite:///./data/agency.db"
