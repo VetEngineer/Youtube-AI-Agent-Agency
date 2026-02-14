@@ -85,7 +85,7 @@ def _build_agent_registry(
     media_editor = MediaEditorAgent()
 
     voice_generator = ElevenLabsVoiceGenerator(api_key=settings.elevenlabs_api_key)
-    image_generator = MidjourneyGenerator(api_key="placeholder")
+    image_generator = MidjourneyGenerator(api_key=settings.midjourney_api_key)
     media_generator = MediaGeneratorAgent(
         voice_generator=voice_generator,
         image_generator=image_generator,

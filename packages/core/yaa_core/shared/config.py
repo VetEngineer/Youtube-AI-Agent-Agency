@@ -19,6 +19,7 @@ class AppSettings(BaseSettings):
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     elevenlabs_api_key: str = ""
+    midjourney_api_key: str = ""
     tavily_api_key: str = ""
     youtube_client_id: str = ""
     youtube_client_secret: str = ""
