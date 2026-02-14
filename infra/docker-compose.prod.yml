@@ -1,0 +1,56 @@
+# Production Docker Compose for Oracle Cloud Free Tier VM
+# Usage: docker compose -f infra/docker-compose.prod.yml up -d
+#
+# Required environment variables (.env):
+#   DB_PASSWORD, JWT_SECRET, CORS_ORIGINS
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: yaa-db
+    environment:
+      POSTGRES_DB: yaa
+      POSTGRES_USER: yaa
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yaa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    container_name: yaa-api
+    environment:
+      DATABASE_URL: postgresql+asyncpg://yaa:${DB_PASSWORD}@db:5432/yaa
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://yourdomain.com}
+      DISABLE_AUTH: "false"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    container_name: yaa-worker
+    command: ["python", "-m", "yaa_app.worker.main"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://yaa:${DB_PASSWORD}@db:5432/yaa
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

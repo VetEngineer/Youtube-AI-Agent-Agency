@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { Header } from "@/components/layout/header"
 import Providers from "./providers";
 
 const pretendard = localFont({
@@ -43,17 +40,9 @@ export default function RootLayout({
       <body
         className={`${pretendard.variable} ${inter.variable} antialiased`}
       >
-        <SidebarProvider>
-          <Providers>
-            <AppSidebar />
-            <main className="flex flex-1 flex-col w-full">
-              <Header />
-              <div className="flex-1 overflow-auto p-6">
-                {children}
-              </div>
-            </main>
-          </Providers>
-        </SidebarProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

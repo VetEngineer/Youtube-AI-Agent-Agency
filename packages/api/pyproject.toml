@@ -19,10 +19,14 @@ youtube-agent = "yaa_app.cli:main"
 auth = [
     "bcrypt>=4.0.0",
     "slowapi>=0.1.9",
+    "PyJWT>=2.8.0",
 ]
 queue = [
     "arq>=0.26",
     "redis>=5.0",
+]
+billing = [
+    "stripe>=8.0.0",
 ]
 monitoring = [
     "prometheus-client>=0.21",
@@ -34,7 +38,7 @@ dev = [
     "ruff>=0.8.0",
 ]
 all = [
-    "yaa-app[auth,queue,monitoring,dev]",
+    "yaa-app[auth,billing,queue,monitoring,dev]",
     "yaa-agents[media,publisher,search,rag]",
 ]
 
