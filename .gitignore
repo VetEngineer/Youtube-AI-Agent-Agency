@@ -50,7 +50,9 @@ htmlcov/
 .pytest_cache/
 
 # Database
-packages/agents/data/
+data/
+packages/*/data/
+*.db
 
 # Misc
 output/
