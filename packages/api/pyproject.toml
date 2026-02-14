@@ -1,0 +1,54 @@
+[project]
+name = "yaa-app"
+version = "0.1.0"
+description = "YAA App - FastAPI 서버, CLI, 워커"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = [
+    "yaa-core",
+    "yaa-agents",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "alembic>=1.14.0",
+]
+
+[project.scripts]
+youtube-agent = "yaa_app.cli:main"
+
+[project.optional-dependencies]
+auth = [
+    "bcrypt>=4.0.0",
+    "slowapi>=0.1.9",
+]
+queue = [
+    "arq>=0.26",
+    "redis>=5.0",
+]
+monitoring = [
+    "prometheus-client>=0.21",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.8.0",
+]
+all = [
+    "yaa-app[auth,queue,monitoring,dev]",
+    "yaa-agents[media,publisher,search,rag]",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["yaa_app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.uv.sources]
+yaa-core = { workspace = true }
+yaa-agents = { workspace = true }

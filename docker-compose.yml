@@ -7,7 +7,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./packages/agents/src:/app/packages/agents/src:ro
+      - ./packages/core/yaa_core:/app/packages/core/yaa_core:ro
+      - ./packages/agents/yaa_agents:/app/packages/agents/yaa_agents:ro
+      - ./packages/api/yaa_app:/app/packages/api/yaa_app:ro
       - ./channels:/app/channels
       - ./output:/app/output
     env_file:
@@ -29,9 +31,11 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: youtube-ai-worker
-    command: ["python", "-m", "arq", "src.worker.tasks.WorkerConfig"]
+    command: ["python", "-m", "arq", "yaa_app.worker.tasks.WorkerConfig"]
     volumes:
-      - ./packages/agents/src:/app/packages/agents/src:ro
+      - ./packages/core/yaa_core:/app/packages/core/yaa_core:ro
+      - ./packages/agents/yaa_agents:/app/packages/agents/yaa_agents:ro
+      - ./packages/api/yaa_app:/app/packages/api/yaa_app:ro
       - ./channels:/app/channels
       - ./output:/app/output
     env_file:

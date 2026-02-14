@@ -24,19 +24,13 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: |
-          cd packages/agents
-          uv pip install --system -e ".[all]"
+        run: uv sync --all-packages --all-extras
 
       - name: Run lint
-        run: |
-          cd packages/agents
-          ruff check src/ tests/
+        run: uv run ruff check packages/
 
       - name: Check formatting
-        run: |
-          cd packages/agents
-          ruff format --check src/ tests/
+        run: uv run ruff format --check packages/
 
   test:
     name: Test
@@ -58,21 +52,17 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Install dependencies
-        run: |
-          cd packages/agents
-          uv pip install --system -e ".[all]"
+        run: uv sync --all-packages --all-extras
 
       - name: Run tests
-        run: |
-          cd packages/agents
-          pytest tests/ -v --cov=src --cov-report=xml
+        run: cd packages/api && uv run pytest tests/ -v --cov=yaa_app --cov=yaa_agents --cov=yaa_core --cov-report=xml
 
       - name: Upload coverage
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: packages/agents/coverage.xml
+          path: packages/api/coverage.xml
 
   docker:
     name: Docker Build
