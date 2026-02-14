@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select, update
@@ -165,22 +165,29 @@ class RunRepository:
             "failed": status_counts["failed"],
         }
 
-    async def get_avg_duration(self) -> float | None:
-        """완료된 실행의 평균 소요시간(초)을 계산합니다."""
-        result = await self._session.execute(
-            select(
-                func.avg(
-                    func.julianday(PipelineRunModel.completed_at)
-                    - func.julianday(PipelineRunModel.created_at)
-                )
-                * 86400  # 일 → 초 변환
-            ).where(
-                PipelineRunModel.status == "completed",
-                PipelineRunModel.completed_at.isnot(None),
-            )
+    async def get_avg_duration(self, days: int = 30) -> float | None:
+        """최근 N일간 완료된 실행의 평균 소요시간(초)을 계산합니다.
+
+        SQLite/PostgreSQL 모두 호환되도록 Python 레벨에서 duration을 계산합니다.
+        """
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        query = select(
+            PipelineRunModel.created_at,
+            PipelineRunModel.completed_at,
+        ).where(
+            PipelineRunModel.status == "completed",
+            PipelineRunModel.completed_at.is_not(None),
+            PipelineRunModel.created_at >= cutoff,
         )
-        avg = result.scalar_one()
-        return float(avg) if avg is not None else None
+        result = await self._session.execute(query)
+        rows = result.all()
+        if not rows:
+            return None
+        durations = [
+            (row.completed_at - row.created_at).total_seconds()
+            for row in rows
+        ]
+        return sum(durations) / len(durations)
 
 
 class ApiKeyRepository:
