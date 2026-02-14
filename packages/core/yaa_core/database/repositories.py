@@ -8,7 +8,147 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from yaa_core.database.models import ApiKeyModel, AuditLogModel, PipelineRunModel, UsageEventModel
+from yaa_core.database.models import (
+    ApiKeyModel,
+    AuditLogModel,
+    PipelineRunModel,
+    SubscriptionModel,
+    UsageEventModel,
+    UserModel,
+    WorkspaceModel,
+)
+
+
+class UserRepository:
+    """사용자 저장소."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        user_id: str,
+        email: str,
+        name: str | None = None,
+        image: str | None = None,
+        provider: str = "email",
+        provider_account_id: str | None = None,
+    ) -> UserModel:
+        """새 사용자를 생성합니다."""
+        user = UserModel(
+            id=user_id,
+            email=email,
+            name=name,
+            image=image,
+            provider=provider,
+            provider_account_id=provider_account_id,
+        )
+        self._session.add(user)
+        await self._session.flush()
+        return user
+
+    async def get(self, user_id: str) -> UserModel | None:
+        """사용자 ID로 조회합니다."""
+        result = await self._session.execute(
+            select(UserModel).where(UserModel.id == user_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_email(self, email: str) -> UserModel | None:
+        """이메일로 사용자를 조회합니다."""
+        result = await self._session.execute(
+            select(UserModel).where(UserModel.email == email)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_or_create_by_oauth(
+        self,
+        email: str,
+        name: str | None,
+        image: str | None,
+        provider: str,
+        provider_account_id: str | None,
+    ) -> tuple[UserModel, bool]:
+        """OAuth 로그인 시 사용자를 조회하거나 새로 생성합니다.
+
+        Returns:
+            (user, created) 튜플
+        """
+        import uuid
+
+        existing = await self.get_by_email(email)
+        if existing:
+            return existing, False
+
+        user = await self.create(
+            user_id=str(uuid.uuid4()),
+            email=email,
+            name=name,
+            image=image,
+            provider=provider,
+            provider_account_id=provider_account_id,
+        )
+        return user, True
+
+    async def update(self, user_id: str, **kwargs: Any) -> None:
+        """사용자 정보를 업데이트합니다."""
+        kwargs["updated_at"] = datetime.now(UTC)
+        await self._session.execute(
+            update(UserModel).where(UserModel.id == user_id).values(**kwargs)
+        )
+
+
+class WorkspaceRepository:
+    """워크스페이스 저장소."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        workspace_id: str,
+        name: str,
+        owner_id: str,
+        plan: str = "free",
+        pipeline_quota: int = 5,
+        channel_quota: int = 1,
+    ) -> WorkspaceModel:
+        """새 워크스페이스를 생성합니다."""
+        workspace = WorkspaceModel(
+            id=workspace_id,
+            name=name,
+            owner_id=owner_id,
+            plan=plan,
+            pipeline_quota=pipeline_quota,
+            channel_quota=channel_quota,
+        )
+        self._session.add(workspace)
+        await self._session.flush()
+        return workspace
+
+    async def get(self, workspace_id: str) -> WorkspaceModel | None:
+        """워크스페이스 ID로 조회합니다."""
+        result = await self._session.execute(
+            select(WorkspaceModel).where(WorkspaceModel.id == workspace_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_by_owner(self, owner_id: str) -> list[WorkspaceModel]:
+        """소유자의 워크스페이스 목록을 조회합니다."""
+        result = await self._session.execute(
+            select(WorkspaceModel)
+            .where(WorkspaceModel.owner_id == owner_id)
+            .order_by(WorkspaceModel.created_at.asc())
+        )
+        return list(result.scalars().all())
+
+    async def update(self, workspace_id: str, **kwargs: Any) -> None:
+        """워크스페이스 정보를 업데이트합니다."""
+        await self._session.execute(
+            update(WorkspaceModel)
+            .where(WorkspaceModel.id == workspace_id)
+            .values(**kwargs)
+        )
 
 
 class RunRepository:
@@ -24,6 +164,7 @@ class RunRepository:
         topic: str,
         brand_name: str = "",
         dry_run: bool = False,
+        workspace_id: str | None = None,
     ) -> PipelineRunModel:
         """새 파이프라인 실행을 생성합니다."""
         run = PipelineRunModel(
@@ -33,6 +174,7 @@ class RunRepository:
             brand_name=brand_name,
             dry_run=dry_run,
             status="pending",
+            workspace_id=workspace_id,
         )
         self._session.add(run)
         await self._session.flush()
@@ -86,20 +228,22 @@ class RunRepository:
         )
         return list(result.scalars().all())
 
-    async def list_recent(self, limit: int = 20, offset: int = 0) -> list[PipelineRunModel]:
+    async def list_recent(
+        self, limit: int = 20, offset: int = 0, workspace_id: str | None = None
+    ) -> list[PipelineRunModel]:
         """최근 실행 목록을 조회합니다."""
-        result = await self._session.execute(
-            select(PipelineRunModel)
-            .order_by(PipelineRunModel.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
+        query = select(PipelineRunModel)
+        if workspace_id is not None:
+            query = query.where(PipelineRunModel.workspace_id == workspace_id)
+        query = query.order_by(PipelineRunModel.created_at.desc()).limit(limit).offset(offset)
+        result = await self._session.execute(query)
         return list(result.scalars().all())
 
     def _build_filter_query(
         self,
         channel_id: str | None = None,
         status: str | None = None,
+        workspace_id: str | None = None,
     ) -> list:
         """필터 조건을 생성합니다."""
         conditions = []
@@ -107,6 +251,8 @@ class RunRepository:
             conditions.append(PipelineRunModel.channel_id == channel_id)
         if status is not None:
             conditions.append(PipelineRunModel.status == status)
+        if workspace_id is not None:
+            conditions.append(PipelineRunModel.workspace_id == workspace_id)
         return conditions
 
     async def list_with_filters(
@@ -115,9 +261,10 @@ class RunRepository:
         status: str | None = None,
         limit: int = 20,
         offset: int = 0,
+        workspace_id: str | None = None,
     ) -> list[PipelineRunModel]:
         """필터링과 페이지네이션을 지원하는 목록 조회."""
-        conditions = self._build_filter_query(channel_id, status)
+        conditions = self._build_filter_query(channel_id, status, workspace_id)
         query = (
             select(PipelineRunModel)
             .where(*conditions)
@@ -132,30 +279,33 @@ class RunRepository:
         self,
         channel_id: str | None = None,
         status: str | None = None,
+        workspace_id: str | None = None,
     ) -> int:
         """필터링된 결과의 총 개수를 반환합니다."""
-        conditions = self._build_filter_query(channel_id, status)
+        conditions = self._build_filter_query(channel_id, status, workspace_id)
         query = select(func.count(PipelineRunModel.id)).where(*conditions)
         result = await self._session.execute(query)
         return result.scalar_one()
 
-    async def get_stats(self) -> dict[str, int]:
+    async def get_stats(self, workspace_id: str | None = None) -> dict[str, int]:
         """대시보드용 통계를 조회합니다."""
-        # 전체 개수
+        base_filter = []
+        if workspace_id is not None:
+            base_filter.append(PipelineRunModel.workspace_id == workspace_id)
+
         total_result = await self._session.execute(
-            select(func.count(PipelineRunModel.id))
+            select(func.count(PipelineRunModel.id)).where(*base_filter)
         )
         total = total_result.scalar_one()
 
-        # 상태별 개수
         status_counts = {}
-        for status in ["pending", "running", "completed", "failed"]:
+        for s in ["pending", "running", "completed", "failed"]:
             result = await self._session.execute(
                 select(func.count(PipelineRunModel.id)).where(
-                    PipelineRunModel.status == status
+                    PipelineRunModel.status == s, *base_filter
                 )
             )
-            status_counts[status] = result.scalar_one()
+            status_counts[s] = result.scalar_one()
 
         return {
             "total": total,
@@ -165,20 +315,23 @@ class RunRepository:
             "failed": status_counts["failed"],
         }
 
-    async def get_avg_duration(self, days: int = 30) -> float | None:
-        """최근 N일간 완료된 실행의 평균 소요시간(초)을 계산합니다.
-
-        SQLite/PostgreSQL 모두 호환되도록 Python 레벨에서 duration을 계산합니다.
-        """
+    async def get_avg_duration(
+        self, days: int = 30, workspace_id: str | None = None
+    ) -> float | None:
+        """최근 N일간 완료된 실행의 평균 소요시간(초)을 계산합니다."""
         cutoff = datetime.now(UTC) - timedelta(days=days)
-        query = select(
-            PipelineRunModel.created_at,
-            PipelineRunModel.completed_at,
-        ).where(
+        conditions = [
             PipelineRunModel.status == "completed",
             PipelineRunModel.completed_at.is_not(None),
             PipelineRunModel.created_at >= cutoff,
-        )
+        ]
+        if workspace_id is not None:
+            conditions.append(PipelineRunModel.workspace_id == workspace_id)
+
+        query = select(
+            PipelineRunModel.created_at,
+            PipelineRunModel.completed_at,
+        ).where(*conditions)
         result = await self._session.execute(query)
         rows = result.all()
         if not rows:
@@ -188,6 +341,18 @@ class RunRepository:
             for row in rows
         ]
         return sum(durations) / len(durations)
+
+    async def count_monthly(self, workspace_id: str) -> int:
+        """이번 달 파이프라인 실행 횟수를 반환합니다."""
+        now = datetime.now(UTC)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        result = await self._session.execute(
+            select(func.count(PipelineRunModel.id)).where(
+                PipelineRunModel.workspace_id == workspace_id,
+                PipelineRunModel.created_at >= month_start,
+            )
+        )
+        return result.scalar_one()
 
 
 class ApiKeyRepository:
@@ -202,6 +367,7 @@ class ApiKeyRepository:
         key_hash: str,
         name: str,
         scopes: list[str] | None = None,
+        workspace_id: str | None = None,
     ) -> ApiKeyModel:
         """새 API 키를 생성합니다."""
         import json
@@ -211,6 +377,7 @@ class ApiKeyRepository:
             key_hash=key_hash,
             name=name,
             scopes_json=json.dumps(scopes or ["read", "write"]),
+            workspace_id=workspace_id,
         )
         self._session.add(api_key)
         await self._session.flush()
@@ -238,11 +405,15 @@ class ApiKeyRepository:
         )
         return list(result.scalars().all())
 
-    async def get_all(self, include_inactive: bool = False) -> list[ApiKeyModel]:
-        """모든 API 키를 조회합니다."""
+    async def get_all(
+        self, include_inactive: bool = False, workspace_id: str | None = None
+    ) -> list[ApiKeyModel]:
+        """API 키 목록을 조회합니다."""
         query = select(ApiKeyModel).order_by(ApiKeyModel.created_at.desc())
         if not include_inactive:
             query = query.where(ApiKeyModel.is_active.is_(True))
+        if workspace_id is not None:
+            query = query.where(ApiKeyModel.workspace_id == workspace_id)
         result = await self._session.execute(query)
         return list(result.scalars().all())
 
@@ -273,6 +444,7 @@ class AuditLogRepository:
         path: str,
         status_code: int | None = None,
         api_key_id: str | None = None,
+        user_id: str | None = None,
         ip_address: str | None = None,
         user_agent: str | None = None,
         duration_ms: float | None = None,
@@ -283,6 +455,7 @@ class AuditLogRepository:
             path=path,
             status_code=status_code,
             api_key_id=api_key_id,
+            user_id=user_id,
             ip_address=ip_address,
             user_agent=user_agent,
             duration_ms=duration_ms,
@@ -448,6 +621,7 @@ class UsageRepository:
         run_id: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        workspace_id: str | None = None,
     ) -> dict[str, Any]:
         """사용량 집계 통계를 반환합니다 (단일 쿼리 최적화)."""
         query = select(
@@ -462,18 +636,20 @@ class UsageRepository:
             UsageEventModel.model,
         )
 
-        # 필터 적용
         if run_id:
             query = query.where(UsageEventModel.run_id == run_id)
         if date_from:
             query = query.where(UsageEventModel.created_at >= date_from)
         if date_to:
             query = query.where(UsageEventModel.created_at <= date_to)
+        if workspace_id:
+            query = query.join(
+                PipelineRunModel, UsageEventModel.run_id == PipelineRunModel.id
+            ).where(PipelineRunModel.workspace_id == workspace_id)
 
         result = await self._session.execute(query)
         rows = result.all()
 
-        # 앱 레벨 집계
         total_cost = 0.0
         total_tokens = 0
         by_agent: dict[str, float] = {}
@@ -498,9 +674,87 @@ class UsageRepository:
             "by_model": by_model,
         }
 
-    async def get_total_cost(self) -> float:
+    async def get_total_cost(self, workspace_id: str | None = None) -> float:
         """Dashboard용 총 비용을 조회합니다."""
-        result = await self._session.execute(
-            select(func.coalesce(func.sum(UsageEventModel.cost_usd), 0.0))
-        )
+        if workspace_id:
+            query = (
+                select(func.coalesce(func.sum(UsageEventModel.cost_usd), 0.0))
+                .join(PipelineRunModel, UsageEventModel.run_id == PipelineRunModel.id)
+                .where(PipelineRunModel.workspace_id == workspace_id)
+            )
+        else:
+            query = select(func.coalesce(func.sum(UsageEventModel.cost_usd), 0.0))
+        result = await self._session.execute(query)
         return float(result.scalar_one())
+
+
+class SubscriptionRepository:
+    """Stripe 구독 저장소."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        subscription_id: str,
+        workspace_id: str,
+        stripe_customer_id: str,
+        stripe_subscription_id: str | None = None,
+        plan: str = "free",
+        status: str = "active",
+        current_period_start: datetime | None = None,
+        current_period_end: datetime | None = None,
+    ) -> SubscriptionModel:
+        """새 구독을 생성합니다."""
+        subscription = SubscriptionModel(
+            id=subscription_id,
+            workspace_id=workspace_id,
+            stripe_customer_id=stripe_customer_id,
+            stripe_subscription_id=stripe_subscription_id,
+            plan=plan,
+            status=status,
+            current_period_start=current_period_start,
+            current_period_end=current_period_end,
+        )
+        self._session.add(subscription)
+        await self._session.flush()
+        return subscription
+
+    async def get_by_workspace(self, workspace_id: str) -> SubscriptionModel | None:
+        """워크스페이스 ID로 구독을 조회합니다."""
+        result = await self._session.execute(
+            select(SubscriptionModel).where(
+                SubscriptionModel.workspace_id == workspace_id
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_stripe_customer(
+        self, stripe_customer_id: str
+    ) -> SubscriptionModel | None:
+        """Stripe 고객 ID로 구독을 조회합니다."""
+        result = await self._session.execute(
+            select(SubscriptionModel).where(
+                SubscriptionModel.stripe_customer_id == stripe_customer_id
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_stripe_subscription(
+        self, stripe_subscription_id: str
+    ) -> SubscriptionModel | None:
+        """Stripe 구독 ID로 구독을 조회합니다."""
+        result = await self._session.execute(
+            select(SubscriptionModel).where(
+                SubscriptionModel.stripe_subscription_id == stripe_subscription_id
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def update(self, subscription_id: str, **kwargs: Any) -> None:
+        """구독 정보를 업데이트합니다."""
+        await self._session.execute(
+            update(SubscriptionModel)
+            .where(SubscriptionModel.id == subscription_id)
+            .values(**kwargs)
+        )

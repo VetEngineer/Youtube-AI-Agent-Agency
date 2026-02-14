@@ -13,7 +13,17 @@ from yaa_core.shared.logging_config import setup_logging
 from yaa_app.api.dependencies import get_settings
 from yaa_app.api.metrics import setup_metrics
 from yaa_app.api.middleware import AuditLogMiddleware, setup_rate_limiting
-from yaa_app.api.routes import admin, channels, dashboard, pipeline, status, usage
+from yaa_app.api.routes import (
+    admin,
+    billing,
+    channels,
+    dashboard,
+    pipeline,
+    plans,
+    status,
+    usage,
+    users,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +91,9 @@ def create_app() -> FastAPI:
     application.include_router(status.router, prefix="/api/v1", tags=["status"])
     application.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
     application.include_router(usage.router, prefix="/api/v1/usage", tags=["usage"])
+    application.include_router(users.router, prefix="/api/v1/users", tags=["users"])
+    application.include_router(plans.router, prefix="/api/v1/plans", tags=["plans"])
+    application.include_router(billing.router, prefix="/api/v1/billing", tags=["billing"])
 
     return application
 

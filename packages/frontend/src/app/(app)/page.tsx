@@ -1,5 +1,6 @@
 'use client';
 
+import { QuotaBadge } from '@/components/quota-badge';
 import { useDashboardSummary } from '@/hooks/use-dashboard';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -179,6 +180,9 @@ export default function Home() {
                   ? `${Math.round((stats.success_runs / stats.total_runs) * 100)}%`
                   : '-'}
               </span>
+            </div>
+            <div className="border-t pt-3">
+              <QuotaBadge />
             </div>
           </div>
         </div>

@@ -5,12 +5,134 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     """모든 ORM 모델의 기반 클래스."""
+
+
+class UserModel(Base):
+    """사용자."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
+    name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    image: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    provider: Mapped[str] = mapped_column(String(20), nullable=False, default="email")
+    provider_account_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    plan: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
+
+    workspaces: Mapped[list[WorkspaceModel]] = relationship(
+        back_populates="owner", lazy="selectin"
+    )
+
+    def to_dict(self) -> dict:
+        """딕셔너리로 변환합니다."""
+        return {
+            "id": self.id,
+            "email": self.email,
+            "name": self.name,
+            "image": self.image,
+            "provider": self.provider,
+            "plan": self.plan,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class WorkspaceModel(Base):
+    """워크스페이스 (멀티테넌시 단위)."""
+
+    __tablename__ = "workspaces"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    owner_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    plan: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
+    pipeline_quota: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    channel_quota: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    owner: Mapped[UserModel] = relationship(back_populates="workspaces", lazy="selectin")
+
+    def to_dict(self) -> dict:
+        """딕셔너리로 변환합니다."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "owner_id": self.owner_id,
+            "plan": self.plan,
+            "pipeline_quota": self.pipeline_quota,
+            "channel_quota": self.channel_quota,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class SubscriptionModel(Base):
+    """Stripe 구독 정보."""
+
+    __tablename__ = "subscriptions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stripe_customer_id: Mapped[str] = mapped_column(
+        String(100), nullable=False, index=True
+    )
+    stripe_subscription_id: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, unique=True
+    )
+    plan: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active"
+    )  # active, canceled, past_due
+    current_period_start: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+    current_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
+
+    def to_dict(self) -> dict:
+        """딕셔너리로 변환합니다."""
+        return {
+            "id": self.id,
+            "workspace_id": self.workspace_id,
+            "stripe_customer_id": self.stripe_customer_id,
+            "stripe_subscription_id": self.stripe_subscription_id,
+            "plan": self.plan,
+            "status": self.status,
+            "current_period_start": (
+                self.current_period_start.isoformat()
+                if self.current_period_start
+                else None
+            ),
+            "current_period_end": (
+                self.current_period_end.isoformat()
+                if self.current_period_end
+                else None
+            ),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 class PipelineRunModel(Base):
@@ -20,6 +142,9 @@ class PipelineRunModel(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     channel_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    workspace_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     topic: Mapped[str] = mapped_column(Text, nullable=False)
     brand_name: Mapped[str] = mapped_column(String(200), default="")
     dry_run: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -56,6 +181,7 @@ class PipelineRunModel(Base):
         return {
             "run_id": self.id,
             "channel_id": self.channel_id,
+            "workspace_id": self.workspace_id,
             "topic": self.topic,
             "brand_name": self.brand_name,
             "dry_run": self.dry_run,
@@ -77,6 +203,9 @@ class ApiKeyModel(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     key_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    workspace_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     scopes_json: Mapped[str] = mapped_column(Text, default='["read","write"]')
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
@@ -96,6 +225,7 @@ class ApiKeyModel(Base):
         return {
             "id": self.id,
             "name": self.name,
+            "workspace_id": self.workspace_id,
             "scopes": self.scopes,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
@@ -117,6 +247,7 @@ class AuditLogModel(Base):
     path: Mapped[str] = mapped_column(String(500), nullable=False)
     status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     api_key_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
     duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)

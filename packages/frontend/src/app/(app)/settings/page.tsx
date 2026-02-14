@@ -32,9 +32,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import { useApiKeys, useCreateApiKey, useDeleteApiKey } from '@/hooks/use-api-keys';
 import { useChannels, useCreateChannel, useUpdateChannel, useDeleteChannel } from '@/hooks/use-channels';
-import { Key, Plus, Trash2, Copy, Check, AlertCircle, Loader2, Settings2 } from 'lucide-react';
+import { usePlans, usePlanUsage } from '@/hooks/use-plans';
+import type { PlanInfo } from '@/hooks/use-plans';
+import { Key, Plus, Trash2, Copy, Check, AlertCircle, Loader2, Settings2, Crown, Zap, Building2 } from 'lucide-react';
 
 function ApiKeySection() {
     const { data, isLoading, error } = useApiKeys();
@@ -597,6 +600,160 @@ function AuthSection() {
     );
 }
 
+const PLAN_ICONS: Record<string, React.ReactNode> = {
+    free: <Zap className="h-5 w-5 text-muted-foreground" />,
+    pro: <Crown className="h-5 w-5 text-yellow-500" />,
+    enterprise: <Building2 className="h-5 w-5 text-purple-500" />,
+};
+
+const PLAN_LABELS: Record<string, string> = {
+    free: 'Free',
+    pro: 'Pro',
+    enterprise: 'Enterprise',
+};
+
+function FeatureRow({ label, enabled }: { label: string; enabled: boolean }) {
+    return (
+        <div className="flex items-center justify-between text-sm">
+            <span>{label}</span>
+            {enabled ? (
+                <Check className="h-4 w-4 text-green-500" />
+            ) : (
+                <span className="text-xs text-muted-foreground">-</span>
+            )}
+        </div>
+    );
+}
+
+function PlanCard({ plan, isCurrent }: { plan: PlanInfo; isCurrent: boolean }) {
+    const limit = plan.quotas.monthly_pipelines;
+    const channelLimit = plan.quotas.max_channels;
+
+    return (
+        <div
+            className={`rounded-lg border p-4 space-y-3 ${
+                isCurrent ? 'border-primary bg-primary/5' : ''
+            }`}
+        >
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    {PLAN_ICONS[plan.name] ?? <Zap className="h-5 w-5" />}
+                    <span className="font-semibold">{PLAN_LABELS[plan.name] ?? plan.name}</span>
+                </div>
+                {isCurrent && (
+                    <Badge variant="secondary" className="text-xs">
+                        Current
+                    </Badge>
+                )}
+            </div>
+            <div className="text-sm text-muted-foreground">
+                {limit === -1 ? 'Unlimited' : limit} pipelines/month
+            </div>
+            <div className="text-sm text-muted-foreground">
+                {channelLimit === -1 ? 'Unlimited' : channelLimit} channels
+            </div>
+            <div className="space-y-1.5 pt-2 border-t">
+                <FeatureRow label="Media Generation" enabled={plan.quotas.media_generation} />
+                <FeatureRow label="YouTube Upload" enabled={plan.quotas.youtube_upload} />
+                <FeatureRow label="Priority Queue" enabled={plan.quotas.priority_queue} />
+                <FeatureRow label="API Access" enabled={plan.quotas.api_access} />
+            </div>
+        </div>
+    );
+}
+
+function PlansSection() {
+    const { data: plansData, isLoading: plansLoading, error: plansError } = usePlans();
+    const { data: usage, isLoading: usageLoading } = usePlanUsage();
+
+    if (plansError) {
+        return (
+            <div className="flex items-center gap-2 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                <AlertCircle className="h-4 w-4 text-red-400" />
+                <span className="text-sm text-red-400">Failed to load plan information.</span>
+            </div>
+        );
+    }
+
+    const isLoading = plansLoading || usageLoading;
+
+    if (isLoading) {
+        return (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                Loading...
+            </div>
+        );
+    }
+
+    const currentPlan = usage?.plan ?? 'free';
+    const isUnlimited = usage ? usage.pipelines_limit === -1 : false;
+    const pipelinesPercent = isUnlimited
+        ? 0
+        : usage
+          ? Math.min((usage.pipelines_used / usage.pipelines_limit) * 100, 100)
+          : 0;
+    const channelsPercent =
+        usage && usage.channels_limit !== -1
+            ? Math.min((usage.channels_used / usage.channels_limit) * 100, 100)
+            : 0;
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h4 className="text-sm font-medium">Plans & Usage</h4>
+                <p className="text-sm text-muted-foreground">
+                    View your current plan and usage statistics.
+                </p>
+            </div>
+
+            {/* 사용량 통계 */}
+            {usage && (
+                <div className="rounded-lg border p-4 space-y-4">
+                    <h5 className="text-sm font-medium">Current Usage</h5>
+                    <div className="space-y-3">
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Pipelines this month</span>
+                                <span className="font-medium">
+                                    {isUnlimited
+                                        ? `${usage.pipelines_used} used`
+                                        : `${usage.pipelines_used} / ${usage.pipelines_limit}`}
+                                </span>
+                            </div>
+                            {!isUnlimited && <Progress value={pipelinesPercent} className="h-2" />}
+                        </div>
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Channels</span>
+                                <span className="font-medium">
+                                    {usage.channels_limit === -1
+                                        ? `${usage.channels_used} used`
+                                        : `${usage.channels_used} / ${usage.channels_limit}`}
+                                </span>
+                            </div>
+                            {usage.channels_limit !== -1 && (
+                                <Progress value={channelsPercent} className="h-2" />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 요금제 카드 */}
+            <div className="grid gap-4 md:grid-cols-3">
+                {plansData?.plans.map((plan) => (
+                    <PlanCard
+                        key={plan.name}
+                        plan={plan}
+                        isCurrent={plan.name === currentPlan}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export default function SettingsPage() {
     return (
         <div className="space-y-6">
@@ -612,6 +769,7 @@ export default function SettingsPage() {
                     <TabsTrigger value="auth">Authentication</TabsTrigger>
                     <TabsTrigger value="api-keys">API Keys</TabsTrigger>
                     <TabsTrigger value="channels">Channels</TabsTrigger>
+                    <TabsTrigger value="plans">Plans</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="auth" className="rounded-xl border bg-card text-card-foreground shadow p-6">
@@ -624,6 +782,10 @@ export default function SettingsPage() {
 
                 <TabsContent value="channels" className="rounded-xl border bg-card text-card-foreground shadow p-6">
                     <ChannelSection />
+                </TabsContent>
+
+                <TabsContent value="plans" className="rounded-xl border bg-card text-card-foreground shadow p-6">
+                    <PlansSection />
                 </TabsContent>
             </Tabs>
         </div>

@@ -12,6 +12,37 @@ from pydantic_settings import BaseSettings
 
 from .models import BrandGuide, ChannelSettings
 
+# ============================================
+# 요금제 정의
+# ============================================
+
+PLAN_QUOTAS: dict[str, dict[str, Any]] = {
+    "free": {
+        "monthly_pipelines": 5,
+        "max_channels": 1,
+        "media_generation": False,
+        "youtube_upload": False,
+        "priority_queue": False,
+        "api_access": False,
+    },
+    "pro": {
+        "monthly_pipelines": 50,
+        "max_channels": 5,
+        "media_generation": True,
+        "youtube_upload": True,
+        "priority_queue": False,
+        "api_access": True,
+    },
+    "enterprise": {
+        "monthly_pipelines": -1,  # unlimited
+        "max_channels": -1,
+        "media_generation": True,
+        "youtube_upload": True,
+        "priority_queue": True,
+        "api_access": True,
+    },
+}
+
 
 class AppSettings(BaseSettings):
     """애플리케이션 전역 설정 (.env에서 로드)."""
@@ -33,10 +64,18 @@ class AppSettings(BaseSettings):
     # 인증
     api_key_header: str = "X-API-Key"
     disable_auth: bool = False
+    jwt_secret: str = ""
+    jwt_algorithm: str = "HS256"
 
     # Rate Limiting
     rate_limit_per_minute: int = 60
     rate_limit_pipeline_per_minute: int = 10
+
+    # Stripe 결제
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_pro: str = ""
+    stripe_price_enterprise: str = ""
 
     # CORS
     cors_origins: str = "http://localhost:3000"

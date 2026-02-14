@@ -9,12 +9,13 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.engine import get_db_session, get_session_factory
-from yaa_core.database.repositories import RunRepository, UsageRepository
+from yaa_core.database.repositories import RunRepository, UsageRepository, WorkspaceRepository
 from yaa_core.shared.config import AppSettings, ChannelRegistry
 from yaa_core.shared.llm_clients import UsageCollector
 
-from yaa_app.api.auth import require_api_key
+from yaa_app.api.auth import AuthContext, get_auth_context
 from yaa_app.api.dependencies import get_channel_registry, get_settings
+from yaa_app.api.quota import check_pipeline_quota
 from yaa_app.api.schemas import (
     PipelineRunDetail,
     PipelineRunListResponse,
@@ -120,13 +121,20 @@ async def run_pipeline(
     settings: AppSettings = Depends(get_settings),
     channel_registry: ChannelRegistry = Depends(get_channel_registry),
     session: AsyncSession = Depends(get_db_session),
-    _api_key_id: str | None = Depends(require_api_key),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> PipelineRunResponse:
     """파이프라인을 실행합니다.
 
     Redis가 사용 가능하면 Arq 큐를 통해 워커에서 실행하고,
     Redis가 없으면 FastAPI BackgroundTasks로 폴백합니다.
     """
+    # 요금제 파이프라인 한도 검사
+    if auth.workspace_id:
+        ws_repo = WorkspaceRepository(session)
+        workspace = await ws_repo.get(auth.workspace_id)
+        if workspace:
+            await check_pipeline_quota(workspace, session)
+
     run_id = str(uuid.uuid4())
 
     repo = RunRepository(session)
@@ -136,6 +144,7 @@ async def run_pipeline(
         topic=request.topic,
         brand_name=request.brand_name,
         dry_run=request.dry_run,
+        workspace_id=auth.workspace_id,
     )
 
     # Redis 큐로 enqueue 시도
@@ -181,7 +190,7 @@ async def list_pipeline_runs(
     limit: int = Query(20, ge=1, le=100, description="페이지 크기"),
     offset: int = Query(0, ge=0, description="오프셋"),
     session: AsyncSession = Depends(get_db_session),
-    _api_key_id: str | None = Depends(require_api_key),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> PipelineRunListResponse:
     """파이프라인 실행 이력을 조회합니다."""
     repo = RunRepository(session)
@@ -191,10 +200,12 @@ async def list_pipeline_runs(
         status=status,
         limit=limit,
         offset=offset,
+        workspace_id=auth.workspace_id,
     )
     total = await repo.count_with_filters(
         channel_id=channel_id,
         status=status,
+        workspace_id=auth.workspace_id,
     )
 
     return PipelineRunListResponse(
@@ -220,13 +231,17 @@ async def list_pipeline_runs(
 async def get_pipeline_run(
     run_id: str,
     session: AsyncSession = Depends(get_db_session),
-    _api_key_id: str | None = Depends(require_api_key),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> PipelineRunDetail:
     """특정 파이프라인 실행의 상세 정보를 조회합니다."""
     repo = RunRepository(session)
     run = await repo.get(run_id)
 
     if run is None:
+        raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
+
+    # workspace 격리: 자기 workspace의 run만 접근 가능
+    if auth.workspace_id and run.workspace_id != auth.workspace_id:
         raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
 
     return PipelineRunDetail(
