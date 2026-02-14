@@ -538,6 +538,15 @@ class TestUsageRepository:
         total = await repo.get_total_cost()
         assert total == 0.0
 
+    async def test_get_summary_이벤트_없으면_빈_결과(self, session):
+        repo = UsageRepository(session)
+        summary = await repo.get_summary()
+        assert summary["total_cost_usd"] == 0.0
+        assert summary["total_tokens"] == 0
+        assert summary["by_agent"] == {}
+        assert summary["by_provider"] == {}
+        assert summary["by_model"] == {}
+
     async def test_list_with_filters_페이지네이션(self, session):
         repo = UsageRepository(session)
         for i in range(5):
