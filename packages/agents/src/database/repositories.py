@@ -449,57 +449,49 @@ class UsageRepository:
         date_from: datetime | None = None,
         date_to: datetime | None = None,
     ) -> dict[str, Any]:
-        """집계 통계를 조회합니다."""
-        conditions = self._build_filter_query(run_id=run_id, date_from=date_from, date_to=date_to)
-
-        # 총합
-        totals_query = select(
-            func.coalesce(func.sum(UsageEventModel.cost_usd), 0.0).label("total_cost"),
-            func.coalesce(func.sum(UsageEventModel.total_tokens), 0).label("total_tokens"),
-        ).where(*conditions)
-        totals = await self._session.execute(totals_query)
-        row = totals.one()
-        total_cost = float(row.total_cost)
-        total_tokens = int(row.total_tokens)
-
-        # by_agent
-        agent_query = (
-            select(
-                UsageEventModel.agent,
-                func.sum(UsageEventModel.cost_usd).label("cost"),
-            )
-            .where(*conditions)
-            .group_by(UsageEventModel.agent)
+        """사용량 집계 통계를 반환합니다 (단일 쿼리 최적화)."""
+        query = select(
+            UsageEventModel.agent,
+            UsageEventModel.provider,
+            UsageEventModel.model,
+            func.sum(UsageEventModel.cost_usd).label("cost"),
+            func.sum(UsageEventModel.total_tokens).label("tokens"),
+        ).group_by(
+            UsageEventModel.agent,
+            UsageEventModel.provider,
+            UsageEventModel.model,
         )
-        agent_result = await self._session.execute(agent_query)
-        by_agent = {r.agent: float(r.cost) for r in agent_result.all()}
 
-        # by_provider
-        provider_query = (
-            select(
-                UsageEventModel.provider,
-                func.sum(UsageEventModel.cost_usd).label("cost"),
-            )
-            .where(*conditions)
-            .group_by(UsageEventModel.provider)
-        )
-        provider_result = await self._session.execute(provider_query)
-        by_provider = {r.provider: float(r.cost) for r in provider_result.all()}
+        # 필터 적용
+        if run_id:
+            query = query.where(UsageEventModel.run_id == run_id)
+        if date_from:
+            query = query.where(UsageEventModel.created_at >= date_from)
+        if date_to:
+            query = query.where(UsageEventModel.created_at <= date_to)
 
-        # by_model
-        model_query = (
-            select(
-                UsageEventModel.model,
-                func.sum(UsageEventModel.cost_usd).label("cost"),
-            )
-            .where(*conditions)
-            .group_by(UsageEventModel.model)
-        )
-        model_result = await self._session.execute(model_query)
-        by_model = {r.model: float(r.cost) for r in model_result.all()}
+        result = await self._session.execute(query)
+        rows = result.all()
+
+        # 앱 레벨 집계
+        total_cost = 0.0
+        total_tokens = 0
+        by_agent: dict[str, float] = {}
+        by_provider: dict[str, float] = {}
+        by_model: dict[str, float] = {}
+
+        for row in rows:
+            cost = float(row.cost or 0)
+            tokens = int(row.tokens or 0)
+            total_cost += cost
+            total_tokens += tokens
+
+            by_agent[row.agent] = by_agent.get(row.agent, 0.0) + cost
+            by_provider[row.provider] = by_provider.get(row.provider, 0.0) + cost
+            by_model[row.model] = by_model.get(row.model, 0.0) + cost
 
         return {
-            "total_cost_usd": total_cost,
+            "total_cost_usd": round(total_cost, 6),
             "total_tokens": total_tokens,
             "by_agent": by_agent,
             "by_provider": by_provider,
