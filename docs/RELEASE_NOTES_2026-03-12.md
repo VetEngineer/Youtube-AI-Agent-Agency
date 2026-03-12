@@ -67,9 +67,10 @@ Observed failure:
 
 Root cause:
 
-- `.github/workflows/ci.yml` configures `astral-sh/setup-uv@v4` with `cache-dependency-glob: **/uv.lock`
+- `/Volumes/Silvernine/Workspace/[100] Business/[010] Projects/[012] Ongoing/Youtube-AI-Agent-Agency/.github/workflows/ci.yml` enables `astral-sh/setup-uv@v4` caching
+- the action defaulted `cache-dependency-glob` to `**/uv.lock`
 - this repository stores `uv.lock` at the workspace root
-- the current glob did not match the root lockfile in GitHub Actions, so the action aborted before dependency installation
+- the effective glob did not match the root lockfile in GitHub Actions, so the action aborted before dependency installation
 
 Recommended follow-up:
 
