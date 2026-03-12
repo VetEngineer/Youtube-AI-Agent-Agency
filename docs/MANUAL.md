@@ -48,8 +48,7 @@ make test
 ### 수동 설치 (uv 직접 사용)
 
 ```bash
-cd packages/agents
-uv pip install -e ".[all]"
+uv sync --all-packages --all-extras
 ```
 
 ---
@@ -154,8 +153,8 @@ FastAPI 기반 REST API 서버를 통해 프로그래밍 방식으로 시스템�
 make server
 
 # 또는 직접 실행
-cd packages/agents
-uv run uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+cd packages/api
+uv run uvicorn yaa_app.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 서버가 시작되면 `http://localhost:8000`에서 접근 가능합니다.
@@ -935,7 +934,9 @@ make docker-down
 | 항목 | 값 | 설명 |
 |------|-----|------|
 | 포트 | `8000:8000` | API 서버 포트 |
-| 소스 마운트 | `./packages/agents/src:/app/packages/agents/src:ro` | 소스 코드 (읽기 전용) |
+| 소스 마운트 | `./packages/core/yaa_core:/app/packages/core/yaa_core:ro` | core 패키지 (읽기 전용) |
+| 소스 마운트 | `./packages/agents/yaa_agents:/app/packages/agents/yaa_agents:ro` | agents 패키지 (읽기 전용) |
+| 소스 마운트 | `./packages/api/yaa_app:/app/packages/api/yaa_app:ro` | api 패키지 (읽기 전용) |
 | 채널 마운트 | `./channels:/app/channels` | 채널 설정 |
 | 출력 마운트 | `./output:/app/output` | 생성된 콘텐츠 |
 | 환경변수 | `.env` | API 키 등 |
@@ -979,83 +980,49 @@ make help    # 사용 가능한 명령어 목록
 
 ```
 Youtube-AI-Agent-Agency/
-├── packages/agents/                    # Python 에이전트 패키지
-│   ├── pyproject.toml                  # 프로젝트 설정, 의존성
-│   ├── src/
-│   │   ├── cli.py                      # CLI 엔트리포인트
-│   │   ├── __main__.py                 # python -m src 지원
-│   │   ├── shared/                     # 공유 모듈
-│   │   │   ├── config.py              # AppSettings, ChannelRegistry
-│   │   │   ├── models.py             # Pydantic 데이터 모델
-│   │   │   ├── llm_clients.py        # LLM 클라이언트 팩토리
-│   │   │   └── llm_utils.py          # JSON 파싱 유틸리티
-│   │   ├── orchestrator/              # LangGraph Supervisor
-│   │   │   ├── supervisor.py          # 파이프라인 그래프 빌드
-│   │   │   ├── state.py              # PipelineState 정의
-│   │   │   └── workflows/            # 워크플로우 (향후 확장)
-│   │   ├── brand_researcher/          # 브랜드 리서치 에이전트
-│   │   │   ├── agent.py
-│   │   │   ├── collector.py          # 웹/SNS 수집기
-│   │   │   ├── analyzer.py           # 포지셔닝 분석
-│   │   │   └── voice_designer.py     # 톤앤매너 설계
-│   │   ├── script_writer/             # 원고 생성 에이전트 (Claude)
-│   │   │   └── agent.py
-│   │   ├── media_generator/           # 미디어 생성 에이전트
-│   │   │   ├── agent.py
-│   │   │   ├── voice_gen.py          # ElevenLabs TTS
-│   │   │   └── image_gen.py          # 이미지 생성
-│   │   ├── media_editor/              # 미디어 편집 에이전트
-│   │   │   ├── agent.py
-│   │   │   ├── video_editor.py       # FFmpeg 영상 편집
-│   │   │   ├── subtitle.py           # 자막 처리
-│   │   │   └── audio_mixer.py        # 오디오 믹싱
-│   │   ├── seo_optimizer/             # SEO 최적화 에이전트 (GPT)
-│   │   │   ├── agent.py
-│   │   │   ├── keyword_research.py   # 키워드 리서치
-│   │   │   └── metadata_gen.py       # 메타데이터 생성
-│   │   ├── publisher/                 # YouTube 업로드 에이전트
-│   │   │   ├── agent.py
-│   │   │   └── youtube_api.py        # YouTube Data API v3
-│   │   ├── analyzer/                  # 성과 분석 에이전트
-│   │   │   ├── agent.py
-│   │   │   ├── analytics.py          # YouTube Analytics API
-│   │   │   └── report_gen.py         # 리포트 생성
-│   │   ├── database/                  # 데이터 영속화
-│   │   │   ├── engine.py             # 비동기 세션 팩토리
-│   │   │   ├── models.py            # SQLAlchemy ORM 모델
-│   │   │   └── repositories.py      # Repository 패턴 (CRUD)
-│   │   └── api/                       # FastAPI REST API
-│   │       ├── main.py               # 앱 팩토리
-│   │       ├── auth.py               # API 키 인증 + 스코프 검증
-│   │       ├── middleware.py          # 감사 로그 + Rate Limiting
-│   │       ├── schemas.py            # Pydantic 스키마
-│   │       ├── dependencies.py       # 의존성 주입
-│   │       └── routes/               # 엔드포인트
-│   │           ├── admin.py          # API 키 관리 + 감사 로그
-│   │           ├── pipeline.py       # 파이프라인 실행 + 이력
-│   │           ├── channels.py       # 채널 CRUD
-│   │           ├── dashboard.py      # 대시보드 요약 통계
-│   │           ├── usage.py          # LLM 사용량/비용 조회
-│   │           └── status.py         # 상태 조회 + 헬스체크
-│   ├── alembic/                       # DB 마이그레이션
-│   │   ├── env.py                    # 마이그레이션 환경
-│   │   └── versions/                 # 마이그레이션 파일
-│   └── tests/                         # 테스트
-├── channels/                           # 채널별 YAML 설정
-├── docs/                               # 프로젝트 문서
-├── .env.example                        # 환경변수 템플릿
-├── Makefile                            # 빌드/실행 명령어
-├── Dockerfile                          # 컨테이너 이미지
-└── docker-compose.yml                  # 서비스 구성
+├── packages/
+│   ├── core/                          # 공용 설정, 모델, DB 계층
+│   │   ├── pyproject.toml
+│   │   └── yaa_core/
+│   │       ├── shared/
+│   │       └── database/
+│   ├── agents/                        # LangGraph 오케스트레이터 + 에이전트 구현
+│   │   ├── pyproject.toml
+│   │   └── yaa_agents/
+│   │       ├── orchestrator/
+│   │       ├── brand_researcher/
+│   │       ├── script_writer/
+│   │       ├── seo_optimizer/
+│   │       ├── media_generator/
+│   │       ├── media_editor/
+│   │       ├── publisher/
+│   │       └── analyzer/
+│   ├── api/                           # FastAPI 서버, CLI, Arq 워커
+│   │   ├── pyproject.toml
+│   │   ├── alembic/
+│   │   ├── tests/
+│   │   └── yaa_app/
+│   │       ├── api/
+│   │       ├── worker/
+│   │       └── cli.py
+│   └── frontend/                      # 별도 Next.js 앱 (uv 워크스페이스 외부)
+├── channels/                          # 채널별 YAML 설정
+├── docs/                              # 프로젝트 문서
+├── .env.example                       # 환경변수 템플릿
+├── Makefile                           # 빌드/실행 명령어
+├── Dockerfile                         # 로컬 개발용 컨테이너 이미지
+├── docker-compose.yml                 # API + worker + Redis + PostgreSQL
+└── uv.lock                            # 워크스페이스 lockfile
 ```
 
 ### 파이프라인 흐름
 
 ```
-Brand Research → Script Writing → SEO Optimization → Media Generation → Media Editing → Publishing
+Brand Research -> Script Writing -> SEO Optimization -> Media Generation -> Media Editing -> Publishing
 ```
 
 각 단계는 LangGraph Supervisor가 StateGraph의 조건부 엣지로 제어합니다.
+상세한 API/DB/요청 흐름 매핑은 `docs/PROJECT_MAP.md`를 참고하세요.
 
 ---
 

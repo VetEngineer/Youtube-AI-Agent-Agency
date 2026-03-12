@@ -1,16 +1,14 @@
 # Packages Directory
 
-This directory contains the independent components of the Youtube AI Agent Agency.
-We are transitioning to a workspace-based architecture.
+This directory contains the executable components of the Youtube AI Agent Agency.
 
-## Current Packages
-- **agents**: The core agent logic (Legacy Monolith).
+## Workspace Packages
+- **core**: Shared config, models, DB engine, repositories
+- **agents**: LangGraph orchestrator and agent implementations
+- **api**: FastAPI app, CLI, and Arq worker
 
-## Future Packages (Planned)
-- **brand_researcher**: Isolated brand research agent.
-- **script_writer**: Isolated script writing agent.
-- **frontend**: Next.js Web Dashboard.
-- **core**: Shared utilities and models.
+## Non-workspace Package
+- **frontend**: Next.js dashboard app. Present in the repo, but not included in the root `uv` workspace.
 
 ## Development
 Each package can be developed and tested independently.

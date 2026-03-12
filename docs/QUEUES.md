@@ -83,7 +83,7 @@ make server
 ## 파일 구조
 
 ```
-packages/agents/src/worker/
+packages/api/yaa_app/worker/
 ├── __init__.py      # 모듈 초기화
 ├── config.py        # WorkerSettings (환경변수 기반)
 ├── enqueue.py       # enqueue_pipeline() 헬퍼

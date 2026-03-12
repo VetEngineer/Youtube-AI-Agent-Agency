@@ -55,7 +55,7 @@ FastAPI 앱은 `/metrics` 엔드포인트에서 Prometheus 형식의 메트릭�
 
 ```bash
 # prometheus-client 설치
-cd packages/agents && uv pip install -e ".[monitoring]"
+cd packages/api && uv sync --extra monitoring
 ```
 
 ## Grafana 대시보드

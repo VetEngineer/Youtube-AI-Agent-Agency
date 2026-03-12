@@ -25,8 +25,8 @@ LOG_LEVEL=INFO    # 로그 레벨 (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 ### 텍스트 포맷 (LOG_FORMAT=text)
 
 ```
-2025-01-15 14:30:00 [INFO] src.api.main: 데이터베이스 초기화 완료
-2025-01-15 14:30:01 [WARNING] src.api.middleware: 감사 로그 저장 실패
+2025-01-15 14:30:00 [INFO] yaa_app.api.main: 데이터베이스 초기화 완료
+2025-01-15 14:30:01 [WARNING] yaa_app.api.middleware: 감사 로그 저장 실패
 ```
 
 ### JSON 포맷 (LOG_FORMAT=json)
@@ -35,7 +35,7 @@ LOG_LEVEL=INFO    # 로그 레벨 (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 {
   "timestamp": "2025-01-15T14:30:00.123456+00:00",
   "level": "INFO",
-  "logger": "src.api.main",
+  "logger": "yaa_app.api.main",
   "message": "데이터베이스 초기화 완료",
   "module": "main",
   "function": "lifespan",
@@ -64,7 +64,7 @@ JSON 출력:
 {
   "timestamp": "2025-01-15T14:30:00+00:00",
   "level": "INFO",
-  "logger": "src.orchestrator.graph",
+  "logger": "yaa_agents.orchestrator.supervisor",
   "message": "파이프라인 실행 완료",
   "channel_id": "tech-channel",
   "duration_ms": 1234.5
@@ -95,6 +95,6 @@ JSON 포맷 로그는 Docker 로그 드라이버를 통해 Loki로 전송됩니�
 ## 파일 구조
 
 ```
-packages/agents/src/shared/
+packages/core/yaa_core/shared/
 └── logging_config.py     # JSONFormatter + setup_logging()
 ```
