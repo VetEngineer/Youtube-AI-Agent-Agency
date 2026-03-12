@@ -48,6 +48,7 @@ async def _db_session_factory():
     """테스트용 인메모리 DB를 초기화합니다."""
     factory = await init_db(TEST_DB_URL)
     yield factory
+    await factory.kw["bind"].dispose()
     set_session_factory(None)
 
 

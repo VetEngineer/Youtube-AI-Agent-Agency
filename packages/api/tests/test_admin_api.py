@@ -41,6 +41,7 @@ def _registry(_channels_dir: Path) -> ChannelRegistry:
 async def _db_session_factory():
     factory = await init_db(TEST_DB_URL)
     yield factory
+    await factory.kw["bind"].dispose()
     set_session_factory(None)
 
 

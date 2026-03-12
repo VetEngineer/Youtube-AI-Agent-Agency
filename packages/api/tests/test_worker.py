@@ -156,6 +156,7 @@ class TestPipelineQueueIntegration:
 
         factory = await init_db("sqlite+aiosqlite:///:memory:")
         yield factory
+        await factory.kw["bind"].dispose()
         set_session_factory(None)
 
     @pytest.fixture()
@@ -204,18 +205,26 @@ class TestPipelineQueueIntegration:
 
     def test_redis_없을때_BackgroundTasks_폴백(self, client):
         """Redis가 없으면 BackgroundTasks로 폴백하여 정상 응답."""
-        response = client.post(
-            "/api/v1/pipeline/run",
-            json={
-                "channel_id": "test-channel",
-                "topic": "큐 테스트",
-                "dry_run": True,
-            },
-        )
+        with (
+            patch("yaa_app.worker.enqueue.get_arq_pool", new_callable=AsyncMock) as mock_get_pool,
+            patch("yaa_app.api.routes.pipeline._execute_pipeline", new_callable=AsyncMock) as mock_execute,
+        ):
+            mock_get_pool.return_value = None
+
+            response = client.post(
+                "/api/v1/pipeline/run",
+                json={
+                    "channel_id": "test-channel",
+                    "topic": "큐 테스트",
+                    "dry_run": True,
+                },
+            )
+
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "pending"
         assert "run_id" in data
+        mock_execute.assert_awaited_once()
 
     @patch("yaa_app.worker.enqueue.enqueue_pipeline", new_callable=AsyncMock)
     def test_redis_있을때_큐로_전달(self, mock_enqueue, client):
@@ -235,22 +244,27 @@ class TestPipelineQueueIntegration:
         assert data["status"] == "pending"
         mock_enqueue.assert_called_once()
 
-    @patch("yaa_app.worker.enqueue.enqueue_pipeline", new_callable=AsyncMock)
-    def test_enqueue_실패시_폴백(self, mock_enqueue, client):
+    def test_enqueue_실패시_폴백(self, client):
         """enqueue 실패 시 BackgroundTasks로 폴백."""
-        mock_enqueue.return_value = False
+        with (
+            patch("yaa_app.worker.enqueue.enqueue_pipeline", new_callable=AsyncMock) as mock_enqueue,
+            patch("yaa_app.api.routes.pipeline._execute_pipeline", new_callable=AsyncMock) as mock_execute,
+        ):
+            mock_enqueue.return_value = False
 
-        response = client.post(
-            "/api/v1/pipeline/run",
-            json={
-                "channel_id": "test-channel",
-                "topic": "폴백 테스트",
-                "dry_run": True,
-            },
-        )
+            response = client.post(
+                "/api/v1/pipeline/run",
+                json={
+                    "channel_id": "test-channel",
+                    "topic": "폴백 테스트",
+                    "dry_run": True,
+                },
+            )
+
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "pending"
+        mock_execute.assert_awaited_once()
 
 
 # ============================================

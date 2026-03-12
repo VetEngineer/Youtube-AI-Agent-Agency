@@ -172,7 +172,11 @@ class BrandIndexer:
 
     def clear_channel(self, channel_id: str) -> None:
         """채널의 인덱스를 삭제합니다."""
-        client = self._get_client()
+        try:
+            client = self._get_client()
+        except ModuleNotFoundError:
+            logger.debug("chromadb가 설치되지 않아 인덱스 삭제를 건너뜁니다: %s", channel_id)
+            return
         collection_name = self._config.collection_name(channel_id)
         try:
             client.delete_collection(name=collection_name)

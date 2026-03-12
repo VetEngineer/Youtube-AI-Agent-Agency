@@ -21,20 +21,42 @@ services:
       retries: 5
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: yaa-redis
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   api:
     build:
       context: ..
       dockerfile: infra/Dockerfile
     container_name: yaa-api
+    env_file:
+      - ../.env
     environment:
+      PYTHONUNBUFFERED: "1"
       DATABASE_URL: postgresql+asyncpg://yaa:${DB_PASSWORD}@db:5432/yaa
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://yourdomain.com}
       DISABLE_AUTH: "false"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "8000:8000"
+    volumes:
+      - ../channels:/app/channels
+      - ../output:/app/output
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -43,14 +65,24 @@ services:
       context: ..
       dockerfile: infra/Dockerfile
     container_name: yaa-worker
-    command: ["python", "-m", "yaa_app.worker.main"]
+    command: ["uv", "run", "python", "-m", "arq", "yaa_app.worker.tasks.WorkerConfig"]
+    env_file:
+      - ../.env
     environment:
+      PYTHONUNBUFFERED: "1"
       DATABASE_URL: postgresql+asyncpg://yaa:${DB_PASSWORD}@db:5432/yaa
-      REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    volumes:
+      - ../channels:/app/channels
+      - ../output:/app/output
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
 volumes:
   pgdata:
+  redisdata:
