@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.engine import get_db_session
 from yaa_core.database.repositories import UsageRepository
 
-from yaa_app.api.auth import require_api_key
+from yaa_app.api.auth import AuthContext, get_auth_context
 from yaa_app.api.schemas import UsageEventResponse, UsageListResponse, UsageSummaryResponse
 
 router = APIRouter()
@@ -25,7 +25,7 @@ async def list_usage_events(
     limit: int = Query(20, ge=1, le=100, description="페이지 크기"),
     offset: int = Query(0, ge=0, description="오프셋"),
     session: AsyncSession = Depends(get_db_session),
-    _api_key_id: str | None = Depends(require_api_key),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> UsageListResponse:
     """사용량 이벤트 목록을 조회합니다."""
     repo = UsageRepository(session)
@@ -38,6 +38,7 @@ async def list_usage_events(
         date_to=date_to,
         limit=limit,
         offset=offset,
+        workspace_id=auth.workspace_id,
     )
     total = await repo.count_with_filters(
         run_id=run_id,
@@ -45,6 +46,7 @@ async def list_usage_events(
         provider=provider,
         date_from=date_from,
         date_to=date_to,
+        workspace_id=auth.workspace_id,
     )
 
     return UsageListResponse(
@@ -75,7 +77,7 @@ async def get_usage_summary(
     date_from: datetime | None = Query(None, description="시작 일시 (ISO 8601)"),
     date_to: datetime | None = Query(None, description="종료 일시 (ISO 8601)"),
     session: AsyncSession = Depends(get_db_session),
-    _api_key_id: str | None = Depends(require_api_key),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> UsageSummaryResponse:
     """사용량 집계 통계를 반환합니다."""
     repo = UsageRepository(session)
@@ -83,6 +85,7 @@ async def get_usage_summary(
         run_id=run_id,
         date_from=date_from,
         date_to=date_to,
+        workspace_id=auth.workspace_id,
     )
 
     return UsageSummaryResponse(

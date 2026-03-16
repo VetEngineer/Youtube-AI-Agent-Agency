@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.engine import get_db_session
 from yaa_core.database.repositories import RunRepository
 
-from yaa_app.api.auth import require_api_key
+from yaa_app.api.auth import AuthContext, get_auth_context
 from yaa_app.api.schemas import PipelineStatusResponse
 
 router = APIRouter()
@@ -23,13 +23,16 @@ async def health_check() -> dict[str, str]:
 async def get_pipeline_status(
     run_id: str,
     session: AsyncSession = Depends(get_db_session),
-    _api_key_id: str | None = Depends(require_api_key),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> PipelineStatusResponse:
     """파이프라인 실행 상태를 조회합니다."""
     repo = RunRepository(session)
     run = await repo.get(run_id)
 
     if run is None:
+        raise HTTPException(status_code=404, detail=f"실행을 찾을 수 없습니다: {run_id}")
+
+    if run.workspace_id and run.workspace_id != auth.workspace_id:
         raise HTTPException(status_code=404, detail=f"실행을 찾을 수 없습니다: {run_id}")
 
     return PipelineStatusResponse(

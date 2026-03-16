@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.engine import get_db_session
 from yaa_core.database.repositories import ApiKeyRepository, AuditLogRepository
 
-from yaa_app.api.auth import create_api_key, require_admin_scope
+from yaa_app.api.auth import AuthContext, create_api_key, get_auth_context, require_admin_scope
 from yaa_app.api.schemas import (
     ApiKeyInfo,
     ApiKeyListResponse,
@@ -34,6 +34,7 @@ async def create_key(
     request_body: CreateApiKeyRequest,
     session: AsyncSession = Depends(get_db_session),
     _admin_key_id: str | None = Depends(require_admin_scope),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> CreateApiKeyResponse:
     """새 API 키를 생성합니다.
 
@@ -43,6 +44,7 @@ async def create_key(
         session=session,
         name=request_body.name,
         scopes=request_body.scopes,
+        workspace_id=auth.workspace_id,
     )
 
     repo = ApiKeyRepository(session)
@@ -75,10 +77,11 @@ async def list_keys(
     include_inactive: bool = Query(False, description="비활성 키 포함 여부"),
     session: AsyncSession = Depends(get_db_session),
     _admin_key_id: str | None = Depends(require_admin_scope),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> ApiKeyListResponse:
     """등록된 API 키 목록을 조회합니다."""
     repo = ApiKeyRepository(session)
-    keys = await repo.get_all(include_inactive=include_inactive)
+    keys = await repo.get_all(include_inactive=include_inactive, workspace_id=auth.workspace_id)
 
     return ApiKeyListResponse(
         keys=[

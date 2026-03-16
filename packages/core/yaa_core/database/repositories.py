@@ -565,6 +565,7 @@ class UsageRepository:
         provider: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        workspace_id: str | None = None,
     ) -> list:
         """필터 조건을 생성합니다."""
         conditions = []
@@ -578,6 +579,14 @@ class UsageRepository:
             conditions.append(UsageEventModel.created_at >= date_from)
         if date_to is not None:
             conditions.append(UsageEventModel.created_at <= date_to)
+        if workspace_id is not None:
+            conditions.append(
+                UsageEventModel.run_id.in_(
+                    select(PipelineRunModel.id).where(
+                        PipelineRunModel.workspace_id == workspace_id
+                    )
+                )
+            )
         return conditions
 
     async def list_with_filters(
@@ -589,9 +598,10 @@ class UsageRepository:
         date_to: datetime | None = None,
         limit: int = 20,
         offset: int = 0,
+        workspace_id: str | None = None,
     ) -> list[UsageEventModel]:
         """필터링과 페이지네이션을 지원하는 목록 조회."""
-        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to)
+        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to, workspace_id)
         query = (
             select(UsageEventModel)
             .where(*conditions)
@@ -609,9 +619,10 @@ class UsageRepository:
         provider: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        workspace_id: str | None = None,
     ) -> int:
         """필터링된 결과의 총 개수를 반환합니다."""
-        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to)
+        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to, workspace_id)
         query = select(func.count(UsageEventModel.id)).where(*conditions)
         result = await self._session.execute(query)
         return result.scalar_one()
@@ -684,6 +695,14 @@ class UsageRepository:
             )
         else:
             query = select(func.coalesce(func.sum(UsageEventModel.cost_usd), 0.0))
+        result = await self._session.execute(query)
+        return float(result.scalar_one())
+
+    async def get_run_cost(self, run_id: str) -> float:
+        """특정 파이프라인 실행의 총 LLM 비용을 조회합니다."""
+        query = select(func.coalesce(func.sum(UsageEventModel.cost_usd), 0.0)).where(
+            UsageEventModel.run_id == run_id
+        )
         result = await self._session.execute(query)
         return float(result.scalar_one())
 
