@@ -67,18 +67,10 @@ def _build_agent_registry(
     anthropic_llm = create_anthropic_client(callbacks=sw_callbacks)
     seo_llm = create_openai_client(callbacks=seo_callbacks)
 
-    # RAG_ENABLED 환경변수 기반 활성화
-    try:
-        from yaa_agents.brand_researcher.rag import RAGConfig
-
-        rag_enabled = RAGConfig().rag_enabled
-    except ImportError:
-        rag_enabled = False
-
     brand_researcher = BrandResearcherAgent(
         llm=brand_researcher_llm,
         registry=channel_registry,
-        rag_enabled=rag_enabled,
+        rag_enabled=settings.rag_enabled,
     )
     script_writer = ScriptWriterAgent(llm=anthropic_llm)
     seo_optimizer = SEOOptimizerAgent(llm=seo_llm)
@@ -218,6 +210,33 @@ async def _cmd_channels_create(args: argparse.Namespace) -> int:
         return 1
 
 
+async def _cmd_rag_index(args: argparse.Namespace) -> int:
+    """RAG 인덱싱 실행."""
+    from yaa_agents.brand_researcher.rag import BrandIndexer, RAGConfig
+
+    settings = AppSettings()
+    _setup_logging(settings.log_level)
+
+    registry = ChannelRegistry(settings.channels_dir)
+
+    try:
+        channel_path = registry.get_channel_path(args.channel_id)
+    except FileNotFoundError:
+        print(f"채널을 찾을 수 없습니다: {args.channel_id}")
+        return 1
+
+    config = RAGConfig()
+    indexer = BrandIndexer(config)
+
+    try:
+        n = indexer.index_channel(args.channel_id, channel_path)
+        print(f"Indexed {n} chunks")
+        return 0
+    except Exception as exc:
+        logger.exception("RAG 인덱싱 실패: %s", exc)
+        return 1
+
+
 async def _cmd_brand_research(args: argparse.Namespace) -> int:
     """브랜드 리서치 실행."""
     from yaa_agents.brand_researcher import BrandResearcherAgent
@@ -272,6 +291,10 @@ def _build_parser() -> argparse.ArgumentParser:
     research_parser.add_argument("--channel", required=True, help="채널 ID")
     research_parser.add_argument("--brand", required=True, help="브랜드명")
 
+    # rag-index
+    rag_parser = subparsers.add_parser("rag-index", help="채널 브랜드 자료 RAG 인덱싱")
+    rag_parser.add_argument("--channel-id", required=True, help="채널 ID")
+
     return parser
 
 
@@ -298,6 +321,9 @@ def main() -> int:
 
     if args.command == "brand-research":
         return asyncio.run(_cmd_brand_research(args))
+
+    if args.command == "rag-index":
+        return asyncio.run(_cmd_rag_index(args))
 
     parser.print_help()
     return 1

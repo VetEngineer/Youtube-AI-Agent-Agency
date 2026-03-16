@@ -125,6 +125,30 @@ async def update_channel(
     )
 
 
+@router.post("/{channel_id}/rag/index")
+async def rag_index_channel(
+    channel_id: str,
+    registry: ChannelRegistry = Depends(get_channel_registry),
+    _api_key_id: str | None = Depends(require_api_key),
+) -> dict:
+    """채널 브랜드 자료를 RAG 벡터 스토리지에 인덱싱합니다."""
+    try:
+        channel_path = registry.get_channel_path(channel_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"채널을 찾을 수 없습니다: {channel_id}")
+
+    try:
+        from yaa_agents.brand_researcher.rag import BrandIndexer, RAGConfig
+    except ImportError:
+        raise HTTPException(status_code=503, detail="chromadb가 설치되지 않아 RAG를 사용할 수 없습니다")
+
+    indexer = BrandIndexer(RAGConfig())
+    n = indexer.index_channel(channel_id, channel_path)
+    logger.info("[RAG] 인덱싱 완료: channel=%s, chunks=%d", channel_id, n)
+
+    return {"channel_id": channel_id, "indexed_chunks": n}
+
+
 @router.delete("/{channel_id}")
 async def delete_channel(
     channel_id: str,

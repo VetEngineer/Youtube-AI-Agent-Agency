@@ -152,6 +152,18 @@ class BrandResearcherAgent:
         """
         guide = await self.research(channel_id, brand_name, additional_queries)
         saved_path = self._registry.save_brand_guide(channel_id, guide)
+
+        if self._rag_enabled:
+            try:
+                from .rag import BrandIndexer, RAGConfig
+
+                indexer = BrandIndexer(RAGConfig())
+                channel_path = self._registry.get_channel_path(channel_id)
+                n = indexer.index_channel(channel_id, channel_path)
+                logger.info("[RAG] Indexed %d chunks: channel=%s", n, channel_id)
+            except Exception as exc:
+                logger.warning("[RAG] 인덱싱 실패, 파이프라인 계속 진행: %s", exc)
+
         return guide, saved_path
 
     async def research_from_collection(
