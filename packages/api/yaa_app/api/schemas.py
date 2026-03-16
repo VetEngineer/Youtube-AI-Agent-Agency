@@ -75,6 +75,7 @@ class PipelineRunDetail(BaseModel):
     completed_at: str | None = None
     result: dict[str, Any] | None = None
     errors: list[str] = Field(default_factory=list)
+    cost_usd: float | None = None
 
 
 # ============================================

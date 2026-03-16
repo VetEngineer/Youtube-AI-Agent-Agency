@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import uuid
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.engine import get_db_session, get_session_factory
 from yaa_core.database.repositories import RunRepository, UsageRepository, WorkspaceRepository
@@ -248,6 +252,9 @@ async def get_pipeline_run(
     if run.workspace_id and run.workspace_id != auth.workspace_id:
         raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
 
+    usage_repo = UsageRepository(session)
+    cost_usd = await usage_repo.get_run_cost(run_id)
+
     return PipelineRunDetail(
         run_id=run.id,
         channel_id=run.channel_id,
@@ -261,4 +268,83 @@ async def get_pipeline_run(
         completed_at=run.completed_at.isoformat() if run.completed_at else None,
         result=run.result,
         errors=run.errors or [],
+        cost_usd=cost_usd if cost_usd > 0 else None,
+    )
+
+
+@router.post("/runs/{run_id}/cancel")
+async def cancel_pipeline_run(
+    run_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> dict[str, str]:
+    """파이프라인 실행을 취소합니다."""
+    repo = RunRepository(session)
+    run = await repo.get(run_id)
+
+    if run is None:
+        raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
+
+    if run.workspace_id and run.workspace_id != auth.workspace_id:
+        raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
+
+    if run.status not in {"pending", "running"}:
+        raise HTTPException(status_code=400, detail=f"취소할 수 없는 상태입니다: {run.status}")
+
+    await repo.update_status(run_id, status="cancelled")
+
+    return {"run_id": run_id, "status": "cancelled"}
+
+
+@router.get("/runs/{run_id}/stream")
+async def stream_pipeline_run(
+    run_id: str,
+    session: AsyncSession = Depends(get_db_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> StreamingResponse:
+    """파이프라인 실행 상태를 SSE로 스트리밍합니다."""
+    repo = RunRepository(session)
+    run = await repo.get(run_id)
+
+    if run is None:
+        raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
+
+    if run.workspace_id and run.workspace_id != auth.workspace_id:
+        raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        session_factory = get_session_factory()
+        if session_factory is None:
+            return
+
+        terminal_statuses = {"completed", "failed", "cancelled"}
+        max_duration_seconds = 35 * 60  # 35분
+        elapsed = 0
+
+        while elapsed < max_duration_seconds:
+            async with session_factory() as poll_session:
+                poll_repo = RunRepository(poll_session)
+                current_run = await poll_repo.get(run_id)
+
+            if current_run is None:
+                break
+
+            data = {
+                "run_id": current_run.id,
+                "status": current_run.status,
+                "current_agent": current_run.current_agent,
+                "errors": current_run.errors,
+            }
+            yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+            if current_run.status in terminal_statuses:
+                break
+
+            await asyncio.sleep(2)
+            elapsed += 2
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
