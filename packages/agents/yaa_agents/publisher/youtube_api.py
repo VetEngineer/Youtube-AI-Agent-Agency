@@ -6,9 +6,11 @@ google-api-python-client는 optional dependency이므로, 미설치 시 명확�
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import stat
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -69,6 +71,7 @@ class YouTubeUploader:
     """YouTube Data API v3를 통한 영상 업로드 클라이언트.
 
     OAuth2 인증 흐름을 사용하며, 대용량 영상은 청크 업로드를 지원합니다.
+    DB 토큰이 제공되면 파일 기반 토큰보다 우선합니다.
     """
 
     def __init__(
@@ -77,6 +80,8 @@ class YouTubeUploader:
         client_secret: str,
         token_path: str = _TOKEN_FILE,
         chunk_size_mb: int = _DEFAULT_CHUNK_SIZE_MB,
+        token_json: str | None = None,
+        on_token_refresh: Callable[[str], None] | None = None,
     ) -> None:
         if not client_id:
             raise ValueError("client_id는 필수입니다")
@@ -87,6 +92,8 @@ class YouTubeUploader:
         self._client_secret = client_secret
         self._token_path = Path(token_path)
         self._chunk_size = chunk_size_mb * _BYTES_PER_MB
+        self._token_json = token_json
+        self._on_token_refresh = on_token_refresh
 
     async def upload(self, request: PublishRequest) -> PublishResult:
         """영상을 YouTube에 업로드합니다.
@@ -117,7 +124,7 @@ class YouTubeUploader:
                 media_body=media,
             )
 
-            response = self._execute_upload(insert_request)
+            response = await self._execute_upload_with_retry(insert_request)
             video_id = response.get("id", "")
 
             logger.info("영상 업로드 완료: video_id=%s", video_id)
@@ -194,8 +201,34 @@ class YouTubeUploader:
         )
 
     def _get_credentials(self) -> Any:
-        """OAuth2 자격증명을 가져옵니다 (토큰 파일 기반)."""
+        """OAuth2 자격증명을 가져옵니다.
+
+        DB 토큰(token_json)이 제공되면 파일 기반 토큰보다 우선합니다.
+        """
         _require_google_api()
+
+        # DB 토큰 우선
+        if self._token_json:
+            import json as _json
+
+            try:
+                token_data = _json.loads(self._token_json)
+                credentials = Credentials.from_authorized_user_info(
+                    token_data, _YOUTUBE_UPLOAD_SCOPE
+                )
+                if credentials and credentials.valid:
+                    return credentials
+
+                if credentials and credentials.expired and credentials.refresh_token:
+                    from google.auth.transport.requests import Request
+
+                    credentials.refresh(Request())
+                    refreshed_json = credentials.to_json()
+                    if self._on_token_refresh:
+                        self._on_token_refresh(refreshed_json)
+                    return credentials
+            except Exception as error:
+                logger.warning("DB 토큰 갱신 실패, 파일 토큰 시도: %s", error)
 
         if self._token_path.exists():
             credentials = Credentials.from_authorized_user_file(
@@ -302,6 +335,30 @@ class YouTubeUploader:
                 progress = int(status.progress() * 100)
                 logger.info("업로드 진행률: %d%%", progress)
         return response
+
+    async def _execute_upload_with_retry(
+        self, insert_request: Any, max_retries: int = 3
+    ) -> dict[str, Any]:
+        """재시도 로직이 포함된 업로드 실행.
+
+        QuotaExceededError, AuthenticationError는 즉시 실패.
+        그 외 일시적 에러는 지수 백오프로 재시도합니다.
+        """
+        for attempt in range(max_retries):
+            try:
+                return self._execute_upload(insert_request)
+            except (QuotaExceededError, AuthenticationError):
+                raise
+            except Exception as exc:
+                if attempt == max_retries - 1:
+                    raise
+                wait = 2 ** attempt  # 1s, 2s, 4s
+                logger.warning(
+                    "업로드 재시도 %d/%d (대기 %ds): %s", attempt + 1, max_retries, wait, exc
+                )
+                await asyncio.sleep(wait)
+        # unreachable
+        raise RuntimeError("업로드 재시도 루프에서 비정상 탈출")
 
     def _handle_upload_error(self, error: Exception) -> PublishResult:
         """업로드 에러를 처리하고 실패 결과를 반환합니다."""

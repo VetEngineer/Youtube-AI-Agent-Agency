@@ -253,6 +253,27 @@ class AuditLogModel(Base):
     duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
+class OAuthTokenModel(Base):
+    """OAuth 토큰 (YouTube 등) DB 저장."""
+
+    __tablename__ = "oauth_tokens"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        unique=True,
+    )
+    provider: Mapped[str] = mapped_column(String(20), nullable=False, default="youtube")
+    token_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
+
+
 class UsageEventModel(Base):
     """LLM 사용량 이벤트."""
 

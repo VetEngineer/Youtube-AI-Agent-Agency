@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.models import (
     ApiKeyModel,
     AuditLogModel,
+    OAuthTokenModel,
     PipelineRunModel,
     SubscriptionModel,
     UsageEventModel,
@@ -776,4 +777,60 @@ class SubscriptionRepository:
             update(SubscriptionModel)
             .where(SubscriptionModel.id == subscription_id)
             .values(**kwargs)
+        )
+
+
+class OAuthTokenRepository:
+    """OAuth 토큰 저장소."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_by_workspace(
+        self, workspace_id: str, provider: str = "youtube"
+    ) -> OAuthTokenModel | None:
+        """워크스페이스 ID와 프로바이더로 토큰을 조회합니다."""
+        result = await self._session.execute(
+            select(OAuthTokenModel).where(
+                OAuthTokenModel.workspace_id == workspace_id,
+                OAuthTokenModel.provider == provider,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def upsert(
+        self, workspace_id: str, token_json: str, provider: str = "youtube"
+    ) -> OAuthTokenModel:
+        """토큰을 생성하거나 업데이트합니다."""
+        import uuid
+
+        existing = await self.get_by_workspace(workspace_id, provider)
+        if existing:
+            await self._session.execute(
+                update(OAuthTokenModel)
+                .where(OAuthTokenModel.id == existing.id)
+                .values(token_json=token_json, updated_at=datetime.now(UTC))
+            )
+            await self._session.flush()
+            return existing
+
+        token = OAuthTokenModel(
+            id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
+            provider=provider,
+            token_json=token_json,
+        )
+        self._session.add(token)
+        await self._session.flush()
+        return token
+
+    async def delete_by_workspace(self, workspace_id: str, provider: str = "youtube") -> None:
+        """워크스페이스의 토큰을 삭제합니다."""
+        from sqlalchemy import delete as sa_delete
+
+        await self._session.execute(
+            sa_delete(OAuthTokenModel).where(
+                OAuthTokenModel.workspace_id == workspace_id,
+                OAuthTokenModel.provider == provider,
+            )
         )
