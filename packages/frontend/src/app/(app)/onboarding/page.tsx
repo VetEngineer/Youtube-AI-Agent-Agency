@@ -7,6 +7,19 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { useCreateChannel } from '@/hooks/use-channels';
+import { ApiError } from '@/lib/api';
+
+function slugify(name: string): string {
+    return name
+        .toLowerCase()
+        .replace(/[^a-z0-9가-힣\s-]/g, '')
+        .trim()
+        .replace(/[\s]+/g, '-')
+        .replace(/-+/g, '-')
+        .slice(0, 50) || 'channel';
+}
 
 const TOTAL_STEPS = 3;
 
@@ -104,8 +117,28 @@ function CreateChannelStep({
     const [channelName, setChannelName] = useState('');
     const [description, setDescription] = useState('');
     const [targetAudience, setTargetAudience] = useState('');
+    const [errorMsg, setErrorMsg] = useState('');
+    const createChannel = useCreateChannel();
 
     const isValid = channelName.trim().length > 0;
+
+    const handleCreate = async () => {
+        setErrorMsg('');
+        try {
+            await createChannel.mutateAsync({
+                channel_id: slugify(channelName),
+                name: channelName.trim(),
+                category: 'general',
+            });
+            onNext();
+        } catch (err) {
+            if (err instanceof ApiError && err.status === 409) {
+                setErrorMsg('같은 이름의 채널이 이미 존재합니다. 다른 이름을 사용해 주세요.');
+            } else {
+                setErrorMsg('채널 생성에 실패했습니다. 다시 시도해 주세요.');
+            }
+        }
+    };
 
     return (
         <Card className="mx-auto max-w-lg">
@@ -143,12 +176,19 @@ function CreateChannelStep({
                         onChange={(e) => setTargetAudience(e.target.value)}
                     />
                 </div>
+                {errorMsg && (
+                    <div className="flex items-center gap-2 text-sm text-red-500">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        {errorMsg}
+                    </div>
+                )}
             </CardContent>
             <CardFooter className="flex gap-3">
-                <Button variant="outline" onClick={onBack} className="flex-1">
+                <Button variant="outline" onClick={onBack} disabled={createChannel.isPending} className="flex-1">
                     이전
                 </Button>
-                <Button onClick={onNext} disabled={!isValid} className="flex-1">
+                <Button onClick={handleCreate} disabled={!isValid || createChannel.isPending} className="flex-1">
+                    {createChannel.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     채널 생성
                 </Button>
             </CardFooter>

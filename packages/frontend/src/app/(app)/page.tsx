@@ -5,7 +5,8 @@ import { useDashboardSummary } from '@/hooks/use-dashboard';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Play, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Plus, Play, CheckCircle, XCircle, Clock, Settings } from 'lucide-react';
+import { ApiError } from '@/lib/api';
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return '-';
@@ -49,11 +50,25 @@ export default function Home() {
   }
 
   if (error) {
+    const isAuthError = error instanceof ApiError && (error.status === 401 || error.status === 403);
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <XCircle className="h-12 w-12 text-red-400 mb-4" />
-        <h3 className="text-lg font-semibold">Failed to load dashboard</h3>
-        <p className="text-sm text-muted-foreground mt-1">Please check your API connection and try again.</p>
+        {isAuthError ? (
+          <>
+            <Settings className="h-12 w-12 text-yellow-400 mb-4" />
+            <h3 className="text-lg font-semibold">API 키가 설정되지 않았습니다</h3>
+            <p className="text-sm text-muted-foreground mt-1">대시보드를 사용하려면 먼저 API 키를 설정해 주세요.</p>
+            <Button asChild className="mt-4">
+              <Link href="/settings">API 키 설정하기</Link>
+            </Button>
+          </>
+        ) : (
+          <>
+            <XCircle className="h-12 w-12 text-red-400 mb-4" />
+            <h3 className="text-lg font-semibold">Failed to load dashboard</h3>
+            <p className="text-sm text-muted-foreground mt-1">Please check your API connection and try again.</p>
+          </>
+        )}
       </div>
     );
   }

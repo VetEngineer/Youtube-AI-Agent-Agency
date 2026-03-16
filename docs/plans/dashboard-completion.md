@@ -1,5 +1,7 @@
 # Plan: Dashboard 미완성 요소 4종 수정
 
+## 상태: ✅ 완료 (2026-03-16)
+
 ## Context
 
 `ytai.hakhamsolution.co.kr` 대시보드에 4가지 미완성 요소가 발견됨:
@@ -14,12 +16,12 @@
 
 ## 수정 대상 파일
 
-| Fix | 액션 | 파일 경로 |
-|-----|------|-----------|
-| Fix 4 | 수정 | `packages/frontend/src/app/(app)/page.tsx` |
-| Fix 3 | 수정 | `packages/frontend/src/app/(app)/onboarding/page.tsx` |
-| Fix 2 | 전체 교체 | `packages/frontend/src/app/(app)/channels/page.tsx` |
-| Fix 1 | 신규 생성 | `packages/frontend/src/app/(app)/pipelines/page.tsx` |
+| Fix | 액션 | 파일 경로 | 상태 |
+|-----|------|-----------|------|
+| Fix 4 | 수정 | `packages/frontend/src/app/(app)/page.tsx` | ✅ 완료 |
+| Fix 3 | 수정 | `packages/frontend/src/app/(app)/onboarding/page.tsx` | ✅ 완료 |
+| Fix 2 | 전체 교체 | `packages/frontend/src/app/(app)/channels/page.tsx` | ✅ 완료 |
+| Fix 1 | 신규 생성 | `packages/frontend/src/app/(app)/pipelines/page.tsx` | ✅ 완료 |
 
 ---
 
