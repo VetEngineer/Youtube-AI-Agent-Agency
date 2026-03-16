@@ -167,3 +167,5 @@ class WorkerConfig:
     max_jobs = _settings.worker_max_jobs
     job_timeout = _settings.worker_job_timeout
     queue_name = _settings.worker_queue_name
+    retry_failed_jobs = True
+    max_tries = 3

@@ -348,3 +348,71 @@ async def stream_pipeline_run(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post("/runs/{run_id}/retry", response_model=PipelineRunResponse)
+async def retry_pipeline_run(
+    run_id: str,
+    background_tasks: BackgroundTasks,
+    settings: AppSettings = Depends(get_settings),
+    channel_registry: ChannelRegistry = Depends(get_channel_registry),
+    session: AsyncSession = Depends(get_db_session),
+    auth: AuthContext = Depends(get_auth_context),
+) -> PipelineRunResponse:
+    """실패하거나 취소된 파이프라인 실행을 동일한 파라미터로 재실행합니다."""
+    repo = RunRepository(session)
+    original_run = await repo.get(run_id)
+
+    if original_run is None:
+        raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
+
+    if original_run.workspace_id and original_run.workspace_id != auth.workspace_id:
+        raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
+
+    if original_run.status not in {"failed", "cancelled"}:
+        raise HTTPException(
+            status_code=400, detail=f"재실행할 수 없는 상태입니다: {original_run.status}"
+        )
+
+    new_run_id = str(uuid.uuid4())
+    await repo.create(
+        run_id=new_run_id,
+        channel_id=original_run.channel_id,
+        topic=original_run.topic,
+        brand_name=original_run.brand_name,
+        dry_run=original_run.dry_run,
+        workspace_id=original_run.workspace_id,
+    )
+
+    enqueued = False
+    try:
+        from yaa_app.worker.enqueue import enqueue_pipeline
+
+        enqueued = await enqueue_pipeline(
+            run_id=new_run_id,
+            channel_id=original_run.channel_id,
+            topic=original_run.topic,
+            brand_name=original_run.brand_name,
+            dry_run=original_run.dry_run,
+        )
+    except ImportError:
+        logger.debug("arq 패키지 미설치 — BackgroundTasks 폴백")
+
+    if not enqueued:
+        background_tasks.add_task(
+            _execute_pipeline,
+            run_id=new_run_id,
+            channel_id=original_run.channel_id,
+            topic=original_run.topic,
+            brand_name=original_run.brand_name,
+            dry_run=original_run.dry_run,
+            settings=settings,
+            channel_registry=channel_registry,
+        )
+
+    return PipelineRunResponse(
+        run_id=new_run_id,
+        status="pending",
+        channel_id=original_run.channel_id,
+        topic=original_run.topic,
+    )
