@@ -352,7 +352,7 @@ class YouTubeUploader:
             except Exception as exc:
                 if attempt == max_retries - 1:
                     raise
-                wait = 2 ** attempt  # 1s, 2s, 4s
+                wait = 2 ** attempt  # 1s, 2s (3rd attempt raises immediately)
                 logger.warning(
                     "업로드 재시도 %d/%d (대기 %ds): %s", attempt + 1, max_retries, wait, exc
                 )

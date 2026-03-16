@@ -374,6 +374,17 @@ async def retry_pipeline_run(
             status_code=400, detail=f"재실행할 수 없는 상태입니다: {original_run.status}"
         )
 
+    # 요금제 파이프라인 한도 검사 (재실행도 새 실행으로 카운트)
+    if auth.workspace_id:
+        ws_repo = WorkspaceRepository(session)
+        workspace = await ws_repo.get(auth.workspace_id)
+        if workspace:
+            await check_pipeline_quota(workspace, session)
+    elif auth.auth_method != "none":
+        raise HTTPException(
+            status_code=400, detail="파이프라인 실행에는 워크스페이스가 필요합니다."
+        )
+
     new_run_id = str(uuid.uuid4())
     await repo.create(
         run_id=new_run_id,

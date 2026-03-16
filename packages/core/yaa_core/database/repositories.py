@@ -209,7 +209,7 @@ class RunRepository:
             values["result_json"] = json.dumps(result, ensure_ascii=False)
         if errors is not None:
             values["errors_json"] = json.dumps(errors, ensure_ascii=False)
-        if status in ("completed", "failed"):
+        if status in ("completed", "failed", "cancelled"):
             values["completed_at"] = datetime.now(UTC)
 
         await self._session.execute(
