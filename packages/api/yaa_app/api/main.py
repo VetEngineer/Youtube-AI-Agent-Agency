@@ -15,6 +15,7 @@ from yaa_app.api.metrics import setup_metrics
 from yaa_app.api.middleware import AuditLogMiddleware, setup_rate_limiting
 from yaa_app.api.routes import (
     admin,
+    auth,
     billing,
     channels,
     dashboard,
@@ -85,6 +86,7 @@ def create_app() -> FastAPI:
     setup_rate_limiting(application)
 
     # 라우터 등록
+    application.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
     application.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
     application.include_router(pipeline.router, prefix="/api/v1/pipeline", tags=["pipeline"])
     application.include_router(channels.router, prefix="/api/v1/channels", tags=["channels"])

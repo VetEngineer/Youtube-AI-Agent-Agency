@@ -77,6 +77,11 @@ class AppSettings(BaseSettings):
     stripe_price_pro: str = ""
     stripe_price_enterprise: str = ""
 
+    # Toss Payments (한국 결제)
+    toss_client_key: str = ""
+    toss_secret_key: str = ""
+    toss_webhook_secret: str = ""
+
     # CORS
     cors_origins: str = "http://localhost:3000"
 

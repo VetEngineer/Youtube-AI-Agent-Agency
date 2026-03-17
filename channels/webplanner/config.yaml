@@ -1,0 +1,28 @@
+# 웹플래너 채널 설정
+
+channel:
+  name: "웹플래너"
+  youtube_channel_id: ""  # 채널 생성 후 입력
+  category: "education"
+  language: "ko"
+
+seo:
+  primary_keywords:
+    - "홈페이지 만들기"
+    - "웹사이트 기획서"
+    - "홈페이지 제작 비용"
+    - "소상공인 홈페이지"
+    - "웹플래너"
+  secondary_keywords:
+    - "병원 홈페이지"
+    - "변호사 홈페이지"
+    - "카페 홈페이지"
+    - "브랜딩 기획"
+    - "사이트맵 작성법"
+    - "랜딩페이지 만들기"
+
+editing:
+  intro_template: "홈페이지, 어디서부터 시작해야 할지 모르겠다면? 웹플래너가 알려드릴게요."
+  outro_template: "오늘 영상이 도움이 됐다면 구독과 좋아요 부탁드려요. 웹플래너 링크는 더보기란에 있습니다."
+  subtitle_style: "clean"
+  bgm_volume: 0.10

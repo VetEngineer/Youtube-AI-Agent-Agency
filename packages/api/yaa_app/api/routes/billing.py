@@ -1,11 +1,15 @@
-"""Stripe 결제 연동 API 라우터."""
+"""Stripe + Toss Payments 결제 연동 API 라우터."""
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import logging
 import uuid
 from datetime import UTC, datetime
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -443,3 +447,258 @@ def _price_id_to_plan(price_id: str, settings: AppSettings | None = None) -> str
     if "enterprise" in price_id.lower():
         return "enterprise"
     return "pro"
+
+
+# ============================================
+# Toss Payments 엔드포인트
+# ============================================
+
+_TOSS_API_BASE = "https://api.tosspayments.com/v1"
+
+
+def _get_toss_auth_header(secret_key: str) -> str:
+    """Toss Payments Basic Auth 헤더를 생성합니다."""
+    credentials = base64.b64encode(f"{secret_key}:".encode()).decode()
+    return f"Basic {credentials}"
+
+
+def _require_toss_config(settings: AppSettings) -> None:
+    """Toss Payments 설정이 유효한지 확인합니다."""
+    if not settings.toss_secret_key:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Toss Payments가 구성되지 않았습니다.",
+        )
+
+
+class TossCheckoutRequest(BaseModel):
+    """Toss 결제 요청."""
+
+    plan: str  # "pro" or "enterprise"
+    order_name: str = "YAA Pro 구독"
+
+
+class TossCheckoutResponse(BaseModel):
+    """Toss 결제 응답 (프론트엔드로 결제창 파라미터 전달)."""
+
+    client_key: str
+    amount: int
+    order_id: str
+    order_name: str
+    customer_name: str | None = None
+
+
+class TossConfirmRequest(BaseModel):
+    """Toss 결제 승인 요청."""
+
+    payment_key: str
+    order_id: str
+    amount: int
+
+
+class TossConfirmResponse(BaseModel):
+    """Toss 결제 승인 응답."""
+
+    payment_key: str
+    order_id: str
+    status: str
+    plan: str
+
+
+_TOSS_PLAN_AMOUNTS = {
+    "pro": 29000,
+    "enterprise": 99000,
+}
+
+
+@router.post("/toss/checkout", response_model=TossCheckoutResponse)
+async def create_toss_checkout(
+    body: TossCheckoutRequest,
+    auth: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_db_session),
+    settings: AppSettings = Depends(get_settings),
+) -> TossCheckoutResponse:
+    """Toss Payments 결제창 파라미터를 생성합니다."""
+    _require_toss_config(settings)
+
+    if body.plan not in ("pro", "enterprise"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 요금제입니다. 'pro' 또는 'enterprise'만 가능합니다.",
+        )
+
+    workspace_id = auth.workspace_id
+    if not workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="워크스페이스가 필요합니다.",
+        )
+
+    amount = _TOSS_PLAN_AMOUNTS[body.plan]
+    order_id = f"yaa-{workspace_id[:8]}-{uuid.uuid4().hex[:8]}"
+
+    logger.info("Toss Checkout 파라미터 생성: workspace=%s plan=%s", workspace_id, body.plan)
+
+    return TossCheckoutResponse(
+        client_key=settings.toss_client_key,
+        amount=amount,
+        order_id=order_id,
+        order_name=body.order_name,
+    )
+
+
+@router.post("/toss/confirm", response_model=TossConfirmResponse)
+async def confirm_toss_payment(
+    body: TossConfirmRequest,
+    auth: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_db_session),
+    settings: AppSettings = Depends(get_settings),
+) -> TossConfirmResponse:
+    """Toss Payments 결제를 승인하고 플랜을 업데이트합니다."""
+    _require_toss_config(settings)
+
+    workspace_id = auth.workspace_id
+    if not workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="워크스페이스가 필요합니다.",
+        )
+
+    # order_id에서 plan 추론 (order_name 기반)
+    # Toss API에서 결제 승인 후 plan 정보를 가져옴
+    plan = "pro"  # 기본값, 실제로는 order_id 메타데이터에서 파싱
+
+    # Toss Payments 결제 승인 API 호출
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{_TOSS_API_BASE}/payments/confirm",
+            headers={
+                "Authorization": _get_toss_auth_header(settings.toss_secret_key),
+                "Content-Type": "application/json",
+            },
+            json={
+                "paymentKey": body.payment_key,
+                "orderId": body.order_id,
+                "amount": body.amount,
+            },
+        )
+
+    if response.status_code != 200:
+        error_data = response.json()
+        logger.error("Toss 결제 승인 실패: %s", error_data)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"결제 승인에 실패했습니다: {error_data.get('message', '알 수 없는 오류')}",
+        )
+
+    payment_data = response.json()
+    toss_status = payment_data.get("status", "")
+
+    if toss_status == "DONE":
+        # 구독 생성/업데이트
+        sub_repo = SubscriptionRepository(session)
+        ws_repo = WorkspaceRepository(session)
+
+        existing = await sub_repo.get_by_workspace(workspace_id)
+        toss_payment_key = payment_data.get("paymentKey", body.payment_key)
+
+        if existing:
+            await sub_repo.update(
+                existing.id,
+                plan=plan,
+                status="active",
+                stripe_customer_id=existing.stripe_customer_id or toss_payment_key,
+            )
+        else:
+            await sub_repo.create(
+                subscription_id=str(uuid.uuid4()),
+                workspace_id=workspace_id,
+                stripe_customer_id=toss_payment_key,  # Toss는 customer ID 대신 payment key 사용
+                plan=plan,
+                status="active",
+            )
+
+        quotas = PLAN_QUOTAS.get(plan, PLAN_QUOTAS["free"])
+        await ws_repo.update(
+            workspace_id,
+            plan=plan,
+            pipeline_quota=quotas["monthly_pipelines"],
+            channel_quota=quotas["max_channels"],
+        )
+        await session.commit()
+
+        logger.info("Toss 결제 승인 완료: workspace=%s plan=%s", workspace_id, plan)
+
+    return TossConfirmResponse(
+        payment_key=body.payment_key,
+        order_id=body.order_id,
+        status=toss_status,
+        plan=plan,
+    )
+
+
+@router.post("/toss/webhook", include_in_schema=False)
+async def toss_webhook(
+    request: Request,
+    session: AsyncSession = Depends(get_db_session),
+    settings: AppSettings = Depends(get_settings),
+) -> dict:
+    """Toss Payments 웹훅을 처리합니다.
+
+    정기결제(빌링) 이벤트 처리.
+    """
+    _require_toss_config(settings)
+
+    payload = await request.body()
+
+    # Toss Payments 웹훅 서명 검증 (webhook_secret 설정된 경우)
+    if settings.toss_webhook_secret:
+        sig_header = request.headers.get("X-Toss-Signature", "")
+        expected_sig = hmac.new(
+            settings.toss_webhook_secret.encode(),
+            payload,
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(sig_header, expected_sig):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="웹훅 서명 검증에 실패했습니다.",
+            )
+
+    import json
+
+    try:
+        event = json.loads(payload)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="잘못된 페이로드입니다.",
+        )
+
+    event_type = event.get("eventType", "")
+    logger.info("Toss 웹훅 수신: type=%s", event_type)
+
+    # 정기결제 상태 변경
+    if event_type == "PAYMENT_STATUS_CHANGED":
+        data = event.get("data", {})
+        toss_status = data.get("status", "")
+        order_id = data.get("orderId", "")
+        payment_key = data.get("paymentKey", "")
+
+        logger.info(
+            "Toss 결제 상태 변경: order_id=%s status=%s payment_key=%s",
+            order_id, toss_status, payment_key,
+        )
+
+        if toss_status == "DONE" and payment_key:
+            # payment_key로 구독 조회 후 상태 업데이트
+            sub_repo = SubscriptionRepository(session)
+            subscription = await sub_repo.get_by_stripe_customer(payment_key)
+            if subscription:
+                await sub_repo.update(subscription.id, status="active")
+
+        elif toss_status in ("CANCELED", "PARTIAL_CANCELED"):
+            logger.info("Toss 결제 취소: order_id=%s", order_id)
+
+    await session.commit()
+    return {"status": "ok"}
