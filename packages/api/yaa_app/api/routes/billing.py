@@ -454,6 +454,7 @@ def _price_id_to_plan(price_id: str, settings: AppSettings | None = None) -> str
 # ============================================
 
 _TOSS_API_BASE = "https://api.tosspayments.com/v1"
+_TOSS_ORDER_PREFIX = "yaa"
 
 
 def _get_toss_auth_header(secret_key: str) -> str:
@@ -471,6 +472,59 @@ def _require_toss_config(settings: AppSettings) -> None:
         )
 
 
+def _require_toss_checkout_config(settings: AppSettings) -> None:
+    """Toss 결제창 호출에 필요한 설정이 유효한지 확인합니다."""
+    _require_toss_config(settings)
+    if not settings.toss_client_key:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Toss Payments client key가 구성되지 않았습니다.",
+        )
+
+
+def _build_toss_order_id(workspace_id: str, plan: str) -> str:
+    """Toss 주문 ID를 생성합니다."""
+    return f"{_TOSS_ORDER_PREFIX}-{plan}-{workspace_id[:8]}-{uuid.uuid4().hex[:8]}"
+
+
+def _extract_toss_plan(order_id: str) -> str:
+    """Toss 주문 ID에서 요금제 이름을 추출합니다."""
+    parts = order_id.split("-")
+    if len(parts) < 4 or parts[0] != _TOSS_ORDER_PREFIX:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 주문 ID입니다.",
+        )
+
+    plan = parts[1]
+    if plan not in _TOSS_PLAN_AMOUNTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 요금제 주문입니다.",
+        )
+    return plan
+
+
+def _verify_toss_order_ownership(order_id: str, workspace_id: str) -> None:
+    """Toss 주문 ID가 현재 인증된 워크스페이스에서 발급된 것인지 검증합니다.
+
+    주문 ID 형식: yaa-{plan}-{workspace_id[:8]}-{random}
+    """
+    parts = order_id.split("-")
+    # 최소 4개 파트: prefix, plan, ws_prefix, random
+    if len(parts) < 4 or parts[0] != _TOSS_ORDER_PREFIX:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="유효하지 않은 주문 ID입니다.",
+        )
+    embedded_ws_prefix = parts[2]
+    if not workspace_id.startswith(embedded_ws_prefix):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="주문 ID가 현재 워크스페이스에서 발급된 것이 아닙니다.",
+        )
+
+
 class TossCheckoutRequest(BaseModel):
     """Toss 결제 요청."""
 
@@ -482,6 +536,7 @@ class TossCheckoutResponse(BaseModel):
     """Toss 결제 응답 (프론트엔드로 결제창 파라미터 전달)."""
 
     client_key: str
+    customer_key: str
     amount: int
     order_id: str
     order_name: str
@@ -510,6 +565,11 @@ _TOSS_PLAN_AMOUNTS = {
     "enterprise": 99000,
 }
 
+_TOSS_PLAN_ORDER_NAMES = {
+    "pro": "YAA Pro 구독",
+    "enterprise": "YAA Enterprise 구독",
+}
+
 
 @router.post("/toss/checkout", response_model=TossCheckoutResponse)
 async def create_toss_checkout(
@@ -519,7 +579,7 @@ async def create_toss_checkout(
     settings: AppSettings = Depends(get_settings),
 ) -> TossCheckoutResponse:
     """Toss Payments 결제창 파라미터를 생성합니다."""
-    _require_toss_config(settings)
+    _require_toss_checkout_config(settings)
 
     if body.plan not in ("pro", "enterprise"):
         raise HTTPException(
@@ -535,15 +595,25 @@ async def create_toss_checkout(
         )
 
     amount = _TOSS_PLAN_AMOUNTS[body.plan]
-    order_id = f"yaa-{workspace_id[:8]}-{uuid.uuid4().hex[:8]}"
+    order_id = _build_toss_order_id(workspace_id, body.plan)
+    order_name = (
+        body.order_name
+        if body.order_name != TossCheckoutRequest.model_fields["order_name"].default
+        else _TOSS_PLAN_ORDER_NAMES[body.plan]
+    )
 
-    logger.info("Toss Checkout 파라미터 생성: workspace=%s plan=%s", workspace_id, body.plan)
+    logger.info(
+        "Toss Checkout 파라미터 생성: workspace=%s plan=%s",
+        workspace_id,
+        body.plan,
+    )
 
     return TossCheckoutResponse(
         client_key=settings.toss_client_key,
+        customer_key=workspace_id,
         amount=amount,
         order_id=order_id,
-        order_name=body.order_name,
+        order_name=order_name,
     )
 
 
@@ -564,9 +634,33 @@ async def confirm_toss_payment(
             detail="워크스페이스가 필요합니다.",
         )
 
-    # order_id에서 plan 추론 (order_name 기반)
-    # Toss API에서 결제 승인 후 plan 정보를 가져옴
-    plan = "pro"  # 기본값, 실제로는 order_id 메타데이터에서 파싱
+    plan = _extract_toss_plan(body.order_id)
+
+    # 소유권 검증: 주문 ID의 워크스페이스 prefix가 현재 인증 사용자와 일치하는지 확인
+    _verify_toss_order_ownership(body.order_id, workspace_id)
+
+    expected_amount = _TOSS_PLAN_AMOUNTS[plan]
+    if body.amount != expected_amount:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="결제 금액이 선택한 요금제와 일치하지 않습니다.",
+        )
+
+    # 멱등성 처리: 이미 승인된 payment_key인지 확인
+    sub_repo_check = SubscriptionRepository(session)
+    existing_payment = await sub_repo_check.get_by_stripe_customer(body.payment_key)
+    if existing_payment and existing_payment.status == "active":
+        logger.info(
+            "Toss 결제 중복 요청 (이미 처리됨): payment_key=%s workspace=%s",
+            body.payment_key,
+            workspace_id,
+        )
+        return TossConfirmResponse(
+            payment_key=body.payment_key,
+            order_id=body.order_id,
+            status="DONE",
+            plan=existing_payment.plan,
+        )
 
     # Toss Payments 결제 승인 API 호출
     async with httpx.AsyncClient() as client:
@@ -584,11 +678,17 @@ async def confirm_toss_payment(
         )
 
     if response.status_code != 200:
-        error_data = response.json()
+        try:
+            error_data = response.json()
+            error_message = error_data.get("message", "알 수 없는 오류")
+        except ValueError:
+            error_data = {"raw": response.text}
+            error_message = response.text or "알 수 없는 오류"
+
         logger.error("Toss 결제 승인 실패: %s", error_data)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"결제 승인에 실패했습니다: {error_data.get('message', '알 수 없는 오류')}",
+            detail=f"결제 승인에 실패했습니다: {error_message}",
         )
 
     payment_data = response.json()
