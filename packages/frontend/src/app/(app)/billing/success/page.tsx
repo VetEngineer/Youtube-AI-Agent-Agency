@@ -30,17 +30,17 @@ export default function BillingSuccessPage() {
                 <CheckCircle2 className="h-8 w-8 text-green-500" />
             </div>
             <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">Payment Successful</h2>
+                <h2 className="text-2xl font-bold">결제가 완료되었습니다!</h2>
                 <p className="text-muted-foreground">
-                    Your subscription has been activated. Redirecting to settings in {countdown} seconds...
+                    구독이 활성화되었습니다. {countdown}초 후 설정 페이지로 이동합니다...
                 </p>
             </div>
             <div className="flex items-center gap-3">
                 <Button onClick={() => router.push('/settings')}>
-                    Go to Settings
+                    설정으로 이동
                 </Button>
                 <Button variant="outline" onClick={() => router.push('/')}>
-                    Go to Dashboard
+                    대시보드로 이동
                 </Button>
             </div>
             {countdown > 0 && (

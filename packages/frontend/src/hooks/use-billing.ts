@@ -11,6 +11,14 @@ interface CheckoutResponse {
     checkout_url: string;
 }
 
+interface TossCheckoutResponse {
+    client_key: string;
+    amount: number;
+    order_id: string;
+    order_name: string;
+    customer_key: string;
+}
+
 interface PortalResponse {
     portal_url: string;
 }
@@ -32,6 +40,29 @@ export function useCheckout() {
         mutationFn: async (plan: string) => {
             const result = await api.post<CheckoutResponse>('/billing/checkout', { plan });
             window.location.href = result.checkout_url;
+            return result;
+        },
+    });
+}
+
+export function useTossCheckout() {
+    return useMutation({
+        mutationFn: async (planId: string) => {
+            const result = await api.post<TossCheckoutResponse>('/billing/toss/checkout', { plan_id: planId });
+
+            const { loadTossPayments } = await import('@tosspayments/tosspayments-sdk');
+            const tossPayments = await loadTossPayments(result.client_key);
+            const payment = tossPayments.payment({ customerKey: result.customer_key });
+
+            await payment.requestPayment({
+                method: 'CARD',
+                amount: { currency: 'KRW', value: result.amount },
+                orderId: result.order_id,
+                orderName: result.order_name,
+                successUrl: `${window.location.origin}/billing/success`,
+                failUrl: `${window.location.origin}/billing/cancel`,
+            });
+
             return result;
         },
     });

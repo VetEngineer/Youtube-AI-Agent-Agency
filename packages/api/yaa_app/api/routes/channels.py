@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+from yaa_core.database.engine import get_db_session
+from yaa_core.database.repositories import WorkspaceRepository
 from yaa_core.shared.config import ChannelRegistry
 
 from yaa_app.api.auth import require_admin_scope, require_api_key
@@ -70,10 +73,24 @@ async def get_channel(
 @router.post("/", response_model=ChannelInfo, status_code=201)
 async def create_channel(
     request: CreateChannelRequest,
+    http_request: Request,
     registry: ChannelRegistry = Depends(get_channel_registry),
     _admin_key_id: str | None = Depends(require_admin_scope),
+    session: AsyncSession = Depends(get_db_session),
 ) -> ChannelInfo:
     """새 채널을 생성합니다."""
+    auth_ctx = getattr(http_request.state, "auth_context", None)
+    if auth_ctx is not None and auth_ctx.workspace_id is not None:
+        ws_repo = WorkspaceRepository(session)
+        workspace = await ws_repo.get(auth_ctx.workspace_id)
+        if workspace is not None and workspace.channel_quota != -1:
+            channel_count = len(registry.list_channels())
+            if channel_count >= workspace.channel_quota:
+                raise HTTPException(
+                    status_code=409,
+                    detail="채널 한도 초과. 플랜을 업그레이드하세요.",
+                )
+
     try:
         registry.create_channel_from_template(request.channel_id)
     except FileExistsError:

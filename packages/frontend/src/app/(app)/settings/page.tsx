@@ -37,6 +37,7 @@ import { useApiKeys, useCreateApiKey, useDeleteApiKey } from '@/hooks/use-api-ke
 import { useChannels, useCreateChannel, useUpdateChannel, useDeleteChannel } from '@/hooks/use-channels';
 import { usePlans, usePlanUsage } from '@/hooks/use-plans';
 import type { PlanInfo } from '@/hooks/use-plans';
+import { useCheckout, useTossCheckout } from '@/hooks/use-billing';
 import { Key, Plus, Trash2, Copy, Check, AlertCircle, Loader2, Settings2, Crown, Zap, Building2 } from 'lucide-react';
 
 function ApiKeySection() {
@@ -625,9 +626,20 @@ function FeatureRow({ label, enabled }: { label: string; enabled: boolean }) {
     );
 }
 
-function PlanCard({ plan, isCurrent }: { plan: PlanInfo; isCurrent: boolean }) {
+function PlanCard({
+    plan,
+    isCurrent,
+    onUpgrade,
+    isUpgrading,
+}: {
+    plan: PlanInfo;
+    isCurrent: boolean;
+    onUpgrade?: (planName: string) => void;
+    isUpgrading?: boolean;
+}) {
     const limit = plan.quotas.monthly_pipelines;
     const channelLimit = plan.quotas.max_channels;
+    const canUpgrade = !isCurrent && plan.name !== 'free';
 
     return (
         <div
@@ -658,6 +670,20 @@ function PlanCard({ plan, isCurrent }: { plan: PlanInfo; isCurrent: boolean }) {
                 <FeatureRow label="Priority Queue" enabled={plan.quotas.priority_queue} />
                 <FeatureRow label="API Access" enabled={plan.quotas.api_access} />
             </div>
+            {isCurrent ? (
+                <Button variant="outline" className="w-full" disabled>
+                    현재 플랜
+                </Button>
+            ) : canUpgrade ? (
+                <Button
+                    className="w-full"
+                    onClick={() => onUpgrade?.(plan.name)}
+                    disabled={isUpgrading}
+                >
+                    {isUpgrading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    업그레이드
+                </Button>
+            ) : null}
         </div>
     );
 }
@@ -665,6 +691,26 @@ function PlanCard({ plan, isCurrent }: { plan: PlanInfo; isCurrent: boolean }) {
 function PlansSection() {
     const { data: plansData, isLoading: plansLoading, error: plansError } = usePlans();
     const { data: usage, isLoading: usageLoading } = usePlanUsage();
+    const stripeCheckout = useCheckout();
+    const tossCheckout = useTossCheckout();
+    const [upgradeError, setUpgradeError] = useState<string | null>(null);
+
+    const handleUpgrade = async (planName: string) => {
+        setUpgradeError(null);
+        try {
+            const isKorean = typeof window !== 'undefined'
+                && window.navigator.language.startsWith('ko');
+
+            if (isKorean) {
+                await tossCheckout.mutateAsync(planName);
+            } else {
+                await stripeCheckout.mutateAsync(planName);
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : '결제 처리 중 오류가 발생했습니다.';
+            setUpgradeError(message);
+        }
+    };
 
     if (plansError) {
         return (
@@ -676,6 +722,7 @@ function PlansSection() {
     }
 
     const isLoading = plansLoading || usageLoading;
+    const isUpgrading = stripeCheckout.isPending || tossCheckout.isPending;
 
     if (isLoading) {
         return (
@@ -706,6 +753,13 @@ function PlansSection() {
                     View your current plan and usage statistics.
                 </p>
             </div>
+
+            {upgradeError && (
+                <div className="flex items-center gap-2 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                    <AlertCircle className="h-4 w-4 text-red-400" />
+                    <span className="text-sm text-red-400">{upgradeError}</span>
+                </div>
+            )}
 
             {/* 사용량 통계 */}
             {usage && (
@@ -747,6 +801,8 @@ function PlansSection() {
                         key={plan.name}
                         plan={plan}
                         isCurrent={plan.name === currentPlan}
+                        onUpgrade={handleUpgrade}
+                        isUpgrading={isUpgrading}
                     />
                 ))}
             </div>
