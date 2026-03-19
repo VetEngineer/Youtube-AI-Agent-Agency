@@ -5,7 +5,7 @@ import { useDashboardSummary } from '@/hooks/use-dashboard';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Play, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Plus, Play, CheckCircle, XCircle, Clock, Rocket, BookOpen } from 'lucide-react';
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return '-';
@@ -133,7 +133,7 @@ export default function Home() {
           <div className="p-6 pt-0">
             <div className="space-y-4">
               {stats.recent_runs && stats.recent_runs.length > 0 ? (
-                stats.recent_runs.map((run) => (
+                stats.recent_runs.map((run: { run_id: string; topic: string; channel_id: string; status: string; created_at: string }) => (
                   <Link
                     key={run.run_id}
                     href={`/pipelines/${run.run_id}`}
@@ -152,8 +152,20 @@ export default function Home() {
                   </Link>
                 ))
               ) : (
-                <div className="text-sm text-muted-foreground text-center py-8">
-                  No recent activity. Start your first pipeline!
+                <div className="flex flex-col items-center gap-4 py-8 text-center">
+                  <p className="text-sm text-muted-foreground">아직 실행된 파이프라인이 없습니다.</p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <Button size="sm" asChild>
+                      <Link href="/pipelines/new">
+                        <Plus className="mr-1 h-3 w-3" /> 첫 파이프라인 만들기
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href="/guide">
+                        <BookOpen className="mr-1 h-3 w-3" /> 사용 가이드 보기
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
