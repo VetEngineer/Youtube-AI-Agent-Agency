@@ -39,12 +39,20 @@ class ScriptWriterAgent:
         self,
         plan: ContentPlan,
         brand_guide: BrandGuide,
+        outline: str = "",
+        guidelines: str = "",
+        references: str = "",
+        audit_feedback: str = "",
     ) -> Script:
         """콘텐츠 기획안과 브랜드 가이드를 기반으로 원고를 생성합니다.
 
         Args:
             plan: 콘텐츠 기획안 (주제, 키워드, 메모 등).
             brand_guide: 브랜드 가이드 (톤앤매너 포함).
+            outline: Strategist가 생성한 아웃라인 텍스트 (선택).
+            guidelines: 파일 기반 가이드라인 텍스트 (선택).
+            references: 레퍼런스 대본 텍스트 (선택).
+            audit_feedback: Auditor 피드백 (재작성 요청 시 사용).
 
         Returns:
             구조화된 Script 모델.
@@ -55,12 +63,26 @@ class ScriptWriterAgent:
         self._validate_inputs(plan, brand_guide)
 
         system_prompt = build_system_prompt(brand_guide.tone_and_manner)
-        user_prompt = build_user_prompt(
-            topic=plan.topic,
-            content_type=plan.content_type,
-            keywords=plan.target_keywords,
-            notes=plan.notes,
-        )
+
+        if audit_feedback:
+            from yaa_agents.script_writer.prompts import build_revision_user_prompt
+
+            user_prompt = build_revision_user_prompt(
+                draft_script="(이전 초안은 피드백 참고)",
+                audit_feedback=audit_feedback,
+                guidelines=guidelines,
+                references=references,
+            )
+        else:
+            user_prompt = build_user_prompt(
+                topic=plan.topic,
+                content_type=plan.content_type,
+                keywords=plan.target_keywords,
+                notes=plan.notes,
+                outline=outline,
+                guidelines=guidelines,
+                references=references,
+            )
 
         raw_response = await self._invoke_llm(system_prompt, user_prompt)
         return self._parse_response(raw_response)

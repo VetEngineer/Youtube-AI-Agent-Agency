@@ -10,6 +10,7 @@ from typing import Any, TypedDict
 
 from yaa_core.shared.models import (
     AgentRole,
+    AuditResult,
     BrandGuide,
     ContentPlan,
     ContentStatus,
@@ -17,6 +18,7 @@ from yaa_core.shared.models import (
     ImageGenerationResult,
     PublishResult,
     Script,
+    ScriptOutline,
     SEOAnalysis,
     VideoMetadata,
     VoiceGenerationResult,
@@ -41,6 +43,9 @@ class PipelineState(TypedDict, total=False):
 
     # Script Writer 출력
     script: Script
+    script_outline: ScriptOutline
+    audit_result: AuditResult
+    script_revision_count: int
 
     # Media Generator 출력
     voice_result: VoiceGenerationResult
