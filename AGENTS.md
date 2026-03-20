@@ -19,7 +19,7 @@ This project follows a Council-based development process.
 - **Rules:**
   - Check issues assigned to you.
   - Implement the code.
-  - **MANDATORY:** Request review from **Codex** (PM) after implementation. Do not merge without review.
+  - **MANDATORY:** After implementation, trigger review from **Codex** (PM) automatically and immediately as part of the normal completion flow. Do not wait for a separate instruction, and do not merge without review.
 
 
 ## Current Status

@@ -47,8 +47,8 @@ export function useCheckout() {
 
 export function useTossCheckout() {
     return useMutation({
-        mutationFn: async (planId: string) => {
-            const result = await api.post<TossCheckoutResponse>('/billing/toss/checkout', { plan_id: planId });
+        mutationFn: async (plan: string) => {
+            const result = await api.post<TossCheckoutResponse>('/billing/toss/checkout', { plan });
 
             const { loadTossPayments } = await import('@tosspayments/tosspayments-sdk');
             const tossPayments = await loadTossPayments(result.client_key);

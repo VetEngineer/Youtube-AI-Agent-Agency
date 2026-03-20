@@ -125,6 +125,89 @@ async def execute_pipeline_task(
         await _save_usage_events(session_factory, collector, run_id)
 
 
+async def monitor_competitors_task(ctx: dict[str, Any]) -> dict[str, Any]:
+    """모든 활성 경쟁 채널을 순회하며 데이터를 수집합니다.
+
+    Arq cron_jobs로 6시간마다 자동 실행됩니다.
+    채널당 ~3 API units 사용 (YouTube API 일일 10,000 unit 제한 고려).
+    """
+    import uuid
+
+    from yaa_core.database.engine import get_session_factory
+    from yaa_core.database.repositories import CompetitorRepository
+    from yaa_core.shared.config import AppSettings
+
+    settings = AppSettings()
+    if not settings.youtube_api_key:
+        logger.warning("YOUTUBE_API_KEY 미설정 - 경쟁 채널 수집 건너뜀")
+        return {"status": "skipped", "reason": "YOUTUBE_API_KEY not set"}
+
+    from yaa_agents.competitor.collector import CompetitorCollector
+
+    session_factory = get_session_factory()
+    if session_factory is None:
+        logger.error("DB 세션 팩토리가 없습니다")
+        return {"status": "error", "message": "DB 세션 팩토리 없음"}
+
+    async with session_factory() as session:
+        repo = CompetitorRepository(session)
+        competitors = await repo.list_active_all()
+
+    if not competitors:
+        logger.info("활성 경쟁 채널 없음 - 수집 건너뜀")
+        return {"status": "ok", "collected": 0}
+
+    collector = CompetitorCollector(settings.youtube_api_key)
+    collected = 0
+    errors = []
+
+    for competitor in competitors:
+        try:
+            # 채널 정보 수집
+            channel_info = await collector.fetch_channel_info(competitor.youtube_channel_id)
+
+            async with session_factory() as session:
+                repo = CompetitorRepository(session)
+                await repo.update_channel_stats(
+                    competitor_id=competitor.id,
+                    name=channel_info["name"],
+                    description=channel_info.get("description"),
+                    subscriber_count=channel_info["subscriber_count"],
+                    video_count=channel_info["video_count"],
+                    thumbnail_url=channel_info.get("thumbnail_url"),
+                )
+
+                # 최근 영상 수집
+                videos = await collector.fetch_recent_videos(
+                    competitor.youtube_channel_id, max_results=20
+                )
+                for video_data in videos:
+                    await repo.upsert_video(
+                        video_id_internal=str(uuid.uuid4()),
+                        competitor_channel_id=competitor.id,
+                        **video_data,
+                    )
+
+                await session.commit()
+
+            collected += 1
+            logger.info(
+                "경쟁 채널 수집 완료: %s (%s)",
+                competitor.name,
+                competitor.youtube_channel_id,
+            )
+
+        except Exception as exc:
+            error_msg = f"{competitor.youtube_channel_id}: {exc}"
+            errors.append(error_msg)
+            logger.warning("경쟁 채널 수집 실패: %s", error_msg)
+
+    logger.info(
+        "경쟁 채널 수집 완료 - 성공: %d, 실패: %d", collected, len(errors)
+    )
+    return {"status": "ok", "collected": collected, "errors": errors}
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     """워커 시작 시 리소스를 초기화합니다."""
     from yaa_core.database.engine import init_db
@@ -148,11 +231,16 @@ class WorkerConfig:
     arq CLI에서 `arq src.worker.tasks.WorkerConfig` 으로 실행합니다.
     """
 
+    from arq.cron import cron
+
     from yaa_app.worker.config import get_worker_settings
 
     _settings = get_worker_settings()
 
     functions = [execute_pipeline_task]
+    cron_jobs = [
+        cron(monitor_competitors_task, hour={0, 6, 12, 18})  # 6시간마다
+    ]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = _settings.redis_settings

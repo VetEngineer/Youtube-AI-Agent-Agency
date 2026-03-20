@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Settings, Youtube, Activity, BookOpen, Rocket } from "lucide-react";
+import { Home, Settings, Youtube, Activity, BookOpen, Rocket, TrendingUp } from "lucide-react";
 
 import {
   Sidebar,
@@ -40,6 +40,12 @@ const items = [
     url: "/channels",
     icon: Youtube,
     tooltip: "파이프라인과 연결할 YouTube 채널을 등록하고 관리합니다",
+  },
+  {
+    title: "Competitors",
+    url: "/competitors",
+    icon: TrendingUp,
+    tooltip: "경쟁 채널 업로드 현황과 영상 성과를 모니터링합니다",
   },
   {
     title: "Settings",

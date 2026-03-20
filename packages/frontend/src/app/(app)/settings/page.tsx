@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,7 @@ import { useChannels, useCreateChannel, useUpdateChannel, useDeleteChannel } fro
 import { usePlans, usePlanUsage } from '@/hooks/use-plans';
 import type { PlanInfo } from '@/hooks/use-plans';
 import { useCheckout, useTossCheckout } from '@/hooks/use-billing';
+import { clearStoredApiKey, getStoredApiKey, setStoredApiKey } from '@/lib/api';
 import { Key, Plus, Trash2, Copy, Check, AlertCircle, Loader2, Settings2, Crown, Zap, Building2 } from 'lucide-react';
 
 function ApiKeySection() {
@@ -536,19 +537,15 @@ function ChannelSection() {
 
 function AuthSection() {
     const [apiKey, setApiKey] = useState('');
-    const [savedKey, setSavedKey] = useState<string | null>(null);
+    const [savedKey, setSavedKey] = useState<string | null>(() => {
+        const stored = getStoredApiKey();
+        return stored ? stored.substring(0, 10) + '...' : null;
+    });
     const [isSaved, setIsSaved] = useState(false);
-
-    useEffect(() => {
-        const stored = localStorage.getItem('api_key');
-        if (stored) {
-            setSavedKey(stored.substring(0, 10) + '...');
-        }
-    }, []);
 
     const handleSave = () => {
         if (apiKey) {
-            localStorage.setItem('api_key', apiKey);
+            setStoredApiKey(apiKey);
             setSavedKey(apiKey.substring(0, 10) + '...');
             setApiKey('');
             setIsSaved(true);
@@ -557,7 +554,7 @@ function AuthSection() {
     };
 
     const handleClear = () => {
-        localStorage.removeItem('api_key');
+        clearStoredApiKey();
         setSavedKey(null);
     };
 
@@ -594,7 +591,7 @@ function AuthSection() {
                     </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                    Your API key is stored locally and used for all API requests.
+                    Your API key is kept for this browser session and attached to protected API requests.
                 </p>
             </div>
         </div>
