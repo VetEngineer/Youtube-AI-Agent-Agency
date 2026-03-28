@@ -92,8 +92,34 @@ export default function MarketingLayout({
                             </ul>
                         </div>
                     </div>
-                    <div className="mt-8 border-t border-border/50 pt-6 text-center text-xs text-muted-foreground">
-                        &copy; {new Date().getFullYear()} YouTube AI Agent Agency. MIT License.
+                    <div className="mt-8 border-t border-border/50 pt-6">
+                        <div className="mb-4 rounded-lg bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
+                            <p className="mb-1 font-medium text-foreground/70">사업자 정보</p>
+                            <div className="grid gap-x-6 gap-y-0.5 sm:grid-cols-2">
+                                <span>상호: 하캄솔루션</span>
+                                <span>대표자: 강은구</span>
+                                <span>사업자등록번호: 435-17-01222</span>
+                                <span>개업일: 2020년 12월 21일</span>
+                                <span>통신판매업 신고번호: 2020-대전유성-1677</span>
+                                <span>
+                                    문의:{' '}
+                                    <a
+                                        href="http://pf.kakao.com/_GxmxcTG/chat"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="underline hover:text-foreground transition-colors"
+                                    >
+                                        카카오톡 채널
+                                    </a>
+                                </span>
+                                <span className="sm:col-span-2">
+                                    사업장 소재지: 대전광역시 유성구 은구비남로33번길 13-8, 3층 3043호 (지족동, 양지빌딩)
+                                </span>
+                            </div>
+                        </div>
+                        <div className="text-center text-xs text-muted-foreground">
+                            &copy; {new Date().getFullYear()} YouTube AI Agent Agency. MIT License.
+                        </div>
                     </div>
                 </div>
             </footer>
