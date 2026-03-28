@@ -73,8 +73,8 @@ dev-setup: install ## 개발 환경 초기화
 # RAG (P7-2)
 # ============================================
 
-rag-index: ## 채널 브랜드 자료 RAG 인덱싱 (channel= 필수)
-	cd $(AGENTS_DIR) && uv run python -c "from yaa_agents.brand_researcher.rag import BrandIndexer, RAGConfig; idx = BrandIndexer(RAGConfig()); print(f'Indexed {idx.index_channel(\"$(channel)\", __import__(\"pathlib\").Path(\"../../channels/$(channel)\"))} chunks')"
+rag-index: ## 채널 브랜드 자료 RAG 인덱싱 (channel_id= 필수)
+	uv run --package yaa-app youtube-agent rag-index --channel-id $(channel_id)
 
 # ============================================
 # Worker / Redis (P7-1)

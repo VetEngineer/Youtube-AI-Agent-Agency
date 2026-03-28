@@ -52,6 +52,9 @@ packages = ["yaa_app"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "integration: 외부 의존성(DB, Redis 등)이 필요한 통합 테스트",
+]
 
 [tool.uv.sources]
 yaa-core = { workspace = true }

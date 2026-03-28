@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { usePipeline, PIPELINE_STAGES } from '@/hooks/use-pipeline';
+import { usePipeline, useCancelPipeline, useRetryPipeline, usePipelineSSE, PIPELINE_STAGES } from '@/hooks/use-pipeline';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Plus, RotateCcw, ExternalLink, CheckCircle, Circle, Loader2, XCircle } from 'lucide-react';
@@ -15,6 +15,7 @@ function getStageStatus(currentAgent: string | null, stageKey: string, pipelineS
         if (stageIndex < currentIndex) return 'completed';
         return 'pending';
     }
+    if (pipelineStatus === 'cancelled') return 'pending';
     if (pipelineStatus === 'completed') return 'completed';
     if (!currentAgent) return 'pending';
 
@@ -49,6 +50,8 @@ function getStatusBadge(status: string) {
             return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Failed</Badge>;
         case 'pending':
             return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pending</Badge>;
+        case 'cancelled':
+            return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Cancelled</Badge>;
         default:
             return <Badge variant="secondary">{status}</Badge>;
     }
@@ -59,6 +62,10 @@ export default function PipelineDetailPage() {
     const id = params?.id as string;
 
     const { data: pipeline, isLoading, error } = usePipeline(id);
+    const cancelMutation = useCancelPipeline();
+    const retryMutation = useRetryPipeline();
+    const isActive = pipeline?.status === 'pending' || pipeline?.status === 'running';
+    usePipelineSSE(isActive ? id : '');
 
     if (isLoading) {
         return (
@@ -108,6 +115,19 @@ export default function PipelineDetailPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     {getStatusBadge(pipeline.status)}
+                    {(pipeline.status === 'pending' || pipeline.status === 'running') && (
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => cancelMutation.mutate(id)}
+                            disabled={cancelMutation.isPending}
+                        >
+                            {cancelMutation.isPending
+                                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                : <XCircle className="mr-2 h-4 w-4" />}
+                            Cancel
+                        </Button>
+                    )}
                     {(pipeline.status === 'completed' || pipeline.status === 'failed') && (
                         <Button variant="outline" size="sm" asChild>
                             <Link href="/pipelines/new">
@@ -197,6 +217,12 @@ export default function PipelineDetailPage() {
                                     <dd>{new Date(pipeline.completed_at).toLocaleString()}</dd>
                                 </div>
                             )}
+                            {pipeline.cost_usd != null && (
+                                <div>
+                                    <dt className="text-muted-foreground">LLM Cost</dt>
+                                    <dd className="font-mono">${pipeline.cost_usd.toFixed(4)}</dd>
+                                </div>
+                            )}
                         </dl>
                     </div>
 
@@ -242,11 +268,17 @@ export default function PipelineDetailPage() {
                         )}
                     </div>
 
-                    {pipeline.status === 'failed' && (
-                        <Button variant="outline" className="w-full" asChild>
-                            <Link href="/pipelines/new">
-                                <RotateCcw className="mr-2 h-4 w-4" /> Retry with Same Topic
-                            </Link>
+                    {(pipeline.status === 'failed' || pipeline.status === 'cancelled') && (
+                        <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => retryMutation.mutate(id)}
+                            disabled={retryMutation.isPending}
+                        >
+                            {retryMutation.isPending
+                                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                : <RotateCcw className="mr-2 h-4 w-4" />}
+                            Retry with Same Topic
                         </Button>
                     )}
                 </div>

@@ -20,6 +20,7 @@ from yaa_app.api.routes import (
     channels,
     competitors,
     dashboard,
+    oauth,
     pipeline,
     plans,
     status,
@@ -106,6 +107,7 @@ def create_app() -> FastAPI:
     application.include_router(
         settings_routes.router, prefix="/api/v1/settings", tags=["settings"]
     )
+    application.include_router(oauth.router, prefix="/api/v1/oauth", tags=["oauth"])
 
     return application
 

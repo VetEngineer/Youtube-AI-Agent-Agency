@@ -79,6 +79,14 @@ async def execute_pipeline_task(
         await repo.update_status(run_id, status="running")
         await session.commit()
 
+    # 취소 레이스컨디션 가드: running 전환 직후 취소 여부 재확인
+    async with session_factory() as session:
+        repo = RunRepository(session)
+        current_run = await repo.get(run_id)
+        if current_run and current_run.status == "cancelled":
+            logger.info("파이프라인 취소됨 (워커 시작 전): run_id=%s", run_id)
+            return {"status": "cancelled", "run_id": run_id}
+
     collector = UsageCollector()
 
     try:
@@ -247,3 +255,5 @@ class WorkerConfig:
     max_jobs = _settings.worker_max_jobs
     job_timeout = _settings.worker_job_timeout
     queue_name = _settings.worker_queue_name
+    retry_failed_jobs = True
+    max_tries = 3

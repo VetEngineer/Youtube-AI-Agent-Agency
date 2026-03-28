@@ -86,6 +86,10 @@ class AppSettings(BaseSettings):
     # CORS
     cors_origins: str = "http://localhost:3000"
 
+    # RAG (벡터 검색)
+    rag_enabled: bool = False
+    rag_persist_dir: str = "./data/chroma"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

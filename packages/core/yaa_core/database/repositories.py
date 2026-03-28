@@ -14,6 +14,7 @@ from yaa_core.database.models import (
     AuditLogModel,
     CompetitorChannelModel,
     CompetitorVideoModel,
+    OAuthTokenModel,
     PipelineRunModel,
     SubscriptionModel,
     UsageEventModel,
@@ -211,7 +212,7 @@ class RunRepository:
             values["result_json"] = json.dumps(result, ensure_ascii=False)
         if errors is not None:
             values["errors_json"] = json.dumps(errors, ensure_ascii=False)
-        if status in ("completed", "failed"):
+        if status in ("completed", "failed", "cancelled"):
             values["completed_at"] = datetime.now(UTC)
 
         await self._session.execute(
@@ -568,6 +569,7 @@ class UsageRepository:
         provider: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        workspace_id: str | None = None,
     ) -> list:
         """필터 조건을 생성합니다."""
         conditions = []
@@ -581,6 +583,14 @@ class UsageRepository:
             conditions.append(UsageEventModel.created_at >= date_from)
         if date_to is not None:
             conditions.append(UsageEventModel.created_at <= date_to)
+        if workspace_id is not None:
+            conditions.append(
+                UsageEventModel.run_id.in_(
+                    select(PipelineRunModel.id).where(
+                        PipelineRunModel.workspace_id == workspace_id
+                    )
+                )
+            )
         return conditions
 
     async def list_with_filters(
@@ -592,9 +602,10 @@ class UsageRepository:
         date_to: datetime | None = None,
         limit: int = 20,
         offset: int = 0,
+        workspace_id: str | None = None,
     ) -> list[UsageEventModel]:
         """필터링과 페이지네이션을 지원하는 목록 조회."""
-        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to)
+        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to, workspace_id)
         query = (
             select(UsageEventModel)
             .where(*conditions)
@@ -612,9 +623,10 @@ class UsageRepository:
         provider: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        workspace_id: str | None = None,
     ) -> int:
         """필터링된 결과의 총 개수를 반환합니다."""
-        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to)
+        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to, workspace_id)
         query = select(func.count(UsageEventModel.id)).where(*conditions)
         result = await self._session.execute(query)
         return result.scalar_one()
@@ -687,6 +699,14 @@ class UsageRepository:
             )
         else:
             query = select(func.coalesce(func.sum(UsageEventModel.cost_usd), 0.0))
+        result = await self._session.execute(query)
+        return float(result.scalar_one())
+
+    async def get_run_cost(self, run_id: str) -> float:
+        """특정 파이프라인 실행의 총 LLM 비용을 조회합니다."""
+        query = select(func.coalesce(func.sum(UsageEventModel.cost_usd), 0.0)).where(
+            UsageEventModel.run_id == run_id
+        )
         result = await self._session.execute(query)
         return float(result.scalar_one())
 
@@ -765,6 +785,10 @@ class SubscriptionRepository:
 
 class CompetitorRepository:
     """경쟁 채널 저장소."""
+
+
+class OAuthTokenRepository:
+    """OAuth 토큰 저장소."""
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -911,3 +935,52 @@ class CompetitorRepository:
             .limit(limit)
         )
         return list(result.scalars().all())
+
+    async def get_by_workspace(
+        self, workspace_id: str, provider: str = "youtube"
+    ) -> OAuthTokenModel | None:
+        """워크스페이스 ID와 프로바이더로 토큰을 조회합니다."""
+        result = await self._session.execute(
+            select(OAuthTokenModel).where(
+                OAuthTokenModel.workspace_id == workspace_id,
+                OAuthTokenModel.provider == provider,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def upsert(
+        self, workspace_id: str, token_json: str, provider: str = "youtube"
+    ) -> OAuthTokenModel:
+        """토큰을 생성하거나 업데이트합니다."""
+        import uuid
+
+        existing = await self.get_by_workspace(workspace_id, provider)
+        if existing:
+            await self._session.execute(
+                update(OAuthTokenModel)
+                .where(OAuthTokenModel.id == existing.id)
+                .values(token_json=token_json, updated_at=datetime.now(UTC))
+            )
+            await self._session.flush()
+            return existing
+
+        token = OAuthTokenModel(
+            id=str(uuid.uuid4()),
+            workspace_id=workspace_id,
+            provider=provider,
+            token_json=token_json,
+        )
+        self._session.add(token)
+        await self._session.flush()
+        return token
+
+    async def delete_by_workspace(self, workspace_id: str, provider: str = "youtube") -> None:
+        """워크스페이스의 토큰을 삭제합니다."""
+        from sqlalchemy import delete as sa_delete
+
+        await self._session.execute(
+            sa_delete(OAuthTokenModel).where(
+                OAuthTokenModel.workspace_id == workspace_id,
+                OAuthTokenModel.provider == provider,
+            )
+        )
