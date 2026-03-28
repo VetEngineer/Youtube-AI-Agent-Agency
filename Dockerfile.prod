@@ -21,7 +21,7 @@ RUN mkdir -p packages/core/yaa_core packages/agents/yaa_agents packages/api/yaa_
 # api[all]은 agents[media,rag] 포함으로 torch/NVIDIA 의존성 발생 → 직접 지정
 # media/rag 제외: torch, whisper, chromadb, moviepy 없음
 RUN uv pip install --system \
-    -e packages/core \
+    -e "packages/core[db-prod]" \
     -e "packages/agents[publisher,search]" \
     -e "packages/api[auth,billing,queue,monitoring]" \
     psycopg2-binary
