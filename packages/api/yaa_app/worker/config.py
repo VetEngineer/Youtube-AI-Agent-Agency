@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings
 class WorkerSettings(BaseSettings):
     """Arq 워커 설정."""
 
+    redis_url: str = ""
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_db: int = 0
@@ -23,6 +24,9 @@ class WorkerSettings(BaseSettings):
     def redis_settings(self):
         """Arq RedisSettings 객체를 반환합니다."""
         from arq.connections import RedisSettings as ArqRedisSettings
+
+        if self.redis_url:
+            return ArqRedisSettings.from_dsn(self.redis_url)
 
         return ArqRedisSettings(
             host=self.redis_host,
