@@ -68,9 +68,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 token: { label: '접근 코드', type: 'password', placeholder: '베타 접근 코드 입력' },
             },
             authorize(credentials) {
-                const bypassSecret = process.env.BYPASS_LOGIN_SECRET;
+                const bypassSecret = process.env.BYPASS_LOGIN_SECRET?.trim();
                 if (!bypassSecret) return null;
-                if (!credentials?.token || credentials.token !== bypassSecret) return null;
+                const inputToken = (credentials?.token as string | undefined)?.trim();
+                if (!inputToken || inputToken !== bypassSecret) return null;
 
                 const email = (credentials.email as string) || 'beta@ytai.dev';
                 return {
