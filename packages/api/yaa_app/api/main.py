@@ -26,6 +26,9 @@ from yaa_app.api.routes import (
     usage,
     users,
 )
+from yaa_app.api.routes import (
+    settings as settings_routes,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +103,9 @@ def create_app() -> FastAPI:
     application.include_router(users.router, prefix="/api/v1/users", tags=["users"])
     application.include_router(plans.router, prefix="/api/v1/plans", tags=["plans"])
     application.include_router(billing.router, prefix="/api/v1/billing", tags=["billing"])
+    application.include_router(
+        settings_routes.router, prefix="/api/v1/settings", tags=["settings"]
+    )
 
     return application
 

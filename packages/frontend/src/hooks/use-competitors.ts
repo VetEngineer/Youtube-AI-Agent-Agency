@@ -39,13 +39,16 @@ export interface AddCompetitorRequest {
     youtube_channel_id: string;
 }
 
-export function useCompetitors(workspaceId: string) {
+export interface IntegrationsInfo {
+    youtube_api_key_set: boolean;
+    youtube_api_key_masked: string | null;
+}
+
+export function useCompetitors() {
     return useQuery({
-        queryKey: ['competitors', workspaceId],
-        queryFn: () =>
-            api.get<CompetitorListResponse>(`/competitors/?workspace_id=${workspaceId}`),
-        staleTime: 5 * 60 * 1000, // 5 minutes
-        enabled: !!workspaceId,
+        queryKey: ['competitors'],
+        queryFn: () => api.get<CompetitorListResponse>('/competitors/'),
+        staleTime: 5 * 60 * 1000,
     });
 }
 
@@ -57,29 +60,26 @@ export function useCompetitor(competitorId: string) {
     });
 }
 
-export function useAddCompetitor(workspaceId: string) {
+export function useAddCompetitor() {
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: (data: AddCompetitorRequest) =>
-            api.post<CompetitorChannelInfo>(
-                `/competitors/?workspace_id=${workspaceId}`,
-                data,
-            ),
+            api.post<CompetitorChannelInfo>('/competitors/', data),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['competitors', workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ['competitors'] });
         },
     });
 }
 
-export function useDeleteCompetitor(workspaceId: string) {
+export function useDeleteCompetitor() {
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: (competitorId: string) =>
             api.delete<void>(`/competitors/${competitorId}`),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['competitors', workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ['competitors'] });
         },
     });
 }
@@ -93,6 +93,26 @@ export function useRefreshCompetitor() {
         onSuccess: (_data, competitorId) => {
             queryClient.invalidateQueries({ queryKey: ['competitors', 'detail', competitorId] });
             queryClient.invalidateQueries({ queryKey: ['competitors'] });
+        },
+    });
+}
+
+export function useIntegrations() {
+    return useQuery({
+        queryKey: ['settings', 'integrations'],
+        queryFn: () => api.get<IntegrationsInfo>('/settings/integrations'),
+        staleTime: 30 * 1000,
+    });
+}
+
+export function useUpdateIntegrations() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: { youtube_api_key: string }) =>
+            api.patch<IntegrationsInfo>('/settings/integrations', data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['settings', 'integrations'] });
         },
     });
 }

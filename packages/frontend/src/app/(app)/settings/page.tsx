@@ -38,8 +38,9 @@ import { useChannels, useCreateChannel, useUpdateChannel, useDeleteChannel } fro
 import { usePlans, usePlanUsage } from '@/hooks/use-plans';
 import type { PlanInfo } from '@/hooks/use-plans';
 import { useCheckout, useTossCheckout } from '@/hooks/use-billing';
+import { useIntegrations, useUpdateIntegrations } from '@/hooks/use-competitors';
 import { clearStoredApiKey, getStoredApiKey, setStoredApiKey } from '@/lib/api';
-import { Key, Plus, Trash2, Copy, Check, AlertCircle, Loader2, Settings2, Crown, Zap, Building2 } from 'lucide-react';
+import { Key, Plus, Trash2, Copy, Check, AlertCircle, Loader2, Settings2, Crown, Zap, Building2, Youtube, Eye, EyeOff } from 'lucide-react';
 
 function ApiKeySection() {
     const { data, isLoading, error } = useApiKeys();
@@ -807,7 +808,168 @@ function PlansSection() {
     );
 }
 
+function IntegrationsSection() {
+    const { data, isLoading, error } = useIntegrations();
+    const updateIntegrations = useUpdateIntegrations();
+
+    const [apiKeyInput, setApiKeyInput] = useState('');
+    const [showInput, setShowInput] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    const handleSave = async () => {
+        if (!apiKeyInput.trim()) return;
+        try {
+            await updateIntegrations.mutateAsync({ youtube_api_key: apiKeyInput.trim() });
+            setApiKeyInput('');
+            setShowInput(false);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2500);
+        } catch {
+            // ignore — error shown via isPending state
+        }
+    };
+
+    const handleRemove = async () => {
+        try {
+            await updateIntegrations.mutateAsync({ youtube_api_key: '' });
+        } catch {
+            // ignore
+        }
+    };
+
+    if (error) {
+        return (
+            <div className="flex items-center gap-2 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                <AlertCircle className="h-4 w-4 text-red-400" />
+                <span className="text-sm text-red-400">통합 설정을 불러오지 못했습니다.</span>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h4 className="text-sm font-medium">Integrations</h4>
+                <p className="text-sm text-muted-foreground">
+                    외부 서비스 연동에 필요한 API 키를 관리합니다.
+                </p>
+            </div>
+
+            {/* YouTube Data API */}
+            <div className="rounded-lg border p-4 space-y-4">
+                <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-red-600/10 flex items-center justify-center">
+                        <Youtube className="h-5 w-5 text-red-500" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium">YouTube Data API v3</p>
+                        <p className="text-xs text-muted-foreground">
+                            경쟁 채널 모니터링에 사용됩니다. Google Cloud Console에서 발급하세요.
+                        </p>
+                    </div>
+                    <div className="ml-auto">
+                        {isLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : data?.youtube_api_key_set ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-green-500 bg-green-500/10 border border-green-500/20 rounded-full px-2 py-0.5">
+                                <Check className="h-3 w-3" /> 설정됨
+                            </span>
+                        ) : (
+                            <span className="text-xs text-muted-foreground">미설정</span>
+                        )}
+                    </div>
+                </div>
+
+                {/* 현재 키 표시 */}
+                {data?.youtube_api_key_set && data.youtube_api_key_masked && (
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                            <Key className="h-4 w-4 text-muted-foreground" />
+                            <code className="text-sm">{data.youtube_api_key_masked}</code>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={handleRemove}
+                            disabled={updateIntegrations.isPending}
+                        >
+                            {updateIntegrations.isPending ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                                <Trash2 className="h-3 w-3" />
+                            )}
+                        </Button>
+                    </div>
+                )}
+
+                {/* 키 입력 토글 */}
+                {!showInput && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowInput(true)}
+                    >
+                        <Plus className="h-3 w-3 mr-1" />
+                        {data?.youtube_api_key_set ? '키 변경' : '키 입력'}
+                    </Button>
+                )}
+
+                {showInput && (
+                    <div className="space-y-2">
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <Input
+                                    type={showInput ? 'text' : 'password'}
+                                    placeholder="AIzaSy..."
+                                    value={apiKeyInput}
+                                    onChange={(e) => setApiKeyInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                                    className="pr-9 font-mono text-sm"
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    onClick={() => setShowInput((v) => !v)}
+                                >
+                                    {showInput ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                            <Button
+                                onClick={handleSave}
+                                disabled={!apiKeyInput.trim() || updateIntegrations.isPending}
+                            >
+                                {updateIntegrations.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : saved ? (
+                                    <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                    '저장'
+                                )}
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                onClick={() => { setShowInput(false); setApiKeyInput(''); }}
+                            >
+                                취소
+                            </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Google Cloud Console → API 및 서비스 → 사용자 인증 정보에서 발급한 서버 키를 입력하세요.
+                        </p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export default function SettingsPage() {
+    const searchParams = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search)
+        : null;
+    const defaultTab = searchParams?.get('tab') ?? 'auth';
+
     return (
         <div className="space-y-6">
             <div>
@@ -817,11 +979,12 @@ export default function SettingsPage() {
                 </p>
             </div>
 
-            <Tabs defaultValue="auth" className="space-y-4">
+            <Tabs defaultValue={defaultTab} className="space-y-4">
                 <TabsList>
                     <TabsTrigger value="auth">Authentication</TabsTrigger>
                     <TabsTrigger value="api-keys">API Keys</TabsTrigger>
                     <TabsTrigger value="channels">Channels</TabsTrigger>
+                    <TabsTrigger value="integrations">Integrations</TabsTrigger>
                     <TabsTrigger value="plans">Plans</TabsTrigger>
                 </TabsList>
 
@@ -835,6 +998,10 @@ export default function SettingsPage() {
 
                 <TabsContent value="channels" className="rounded-xl border bg-card text-card-foreground shadow p-6">
                     <ChannelSection />
+                </TabsContent>
+
+                <TabsContent value="integrations" className="rounded-xl border bg-card text-card-foreground shadow p-6">
+                    <IntegrationsSection />
                 </TabsContent>
 
                 <TabsContent value="plans" className="rounded-xl border bg-card text-card-foreground shadow p-6">

@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.engine import get_db_session
-from yaa_core.database.repositories import CompetitorRepository
+from yaa_core.database.repositories import CompetitorRepository, WorkspaceRepository
 
 from yaa_app.api.auth import require_admin_scope, require_api_key
 from yaa_app.api.dependencies import get_settings
@@ -54,13 +54,43 @@ def _to_video_info(model) -> CompetitorVideoInfo:
     )
 
 
+async def _resolve_workspace_id(request: Request) -> str:
+    """auth_context에서 workspace_id를 추출합니다."""
+    auth_ctx = getattr(request.state, "auth_context", None)
+    if auth_ctx is None or auth_ctx.workspace_id is None:
+        raise HTTPException(status_code=403, detail="워크스페이스 인증이 필요합니다.")
+    return auth_ctx.workspace_id
+
+
+async def _get_youtube_api_key(
+    workspace_id: str,
+    session: AsyncSession,
+    settings,
+) -> str:
+    """워크스페이스 설정 → 환경변수 순으로 YouTube API Key를 조회합니다."""
+    ws_repo = WorkspaceRepository(session)
+    workspace = await ws_repo.get(workspace_id)
+    if workspace is not None and workspace.youtube_api_key:
+        return workspace.youtube_api_key
+    if settings.youtube_api_key:
+        return settings.youtube_api_key
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            "YouTube API Key가 설정되지 않았습니다. "
+            "Settings > Integrations에서 입력하거나 YOUTUBE_API_KEY 환경변수를 설정하세요."
+        ),
+    )
+
+
 @router.get("/", response_model=CompetitorListResponse)
 async def list_competitors(
-    workspace_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
     _api_key_id: str | None = Depends(require_api_key),
 ) -> CompetitorListResponse:
     """등록된 경쟁 채널 목록을 조회합니다."""
+    workspace_id = await _resolve_workspace_id(request)
     repo = CompetitorRepository(session)
     competitors = await repo.list_by_workspace(workspace_id)
     return CompetitorListResponse(
@@ -71,41 +101,35 @@ async def list_competitors(
 
 @router.post("/", response_model=CompetitorChannelInfo, status_code=201)
 async def add_competitor(
-    request: AddCompetitorRequest,
-    workspace_id: str,
+    body: AddCompetitorRequest,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
     _admin_key_id: str | None = Depends(require_admin_scope),
     settings=Depends(get_settings),
 ) -> CompetitorChannelInfo:
-    """경쟁 채널을 등록하고 즉시 데이터를 수집합니다."""
-    if not settings.youtube_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="YOUTUBE_API_KEY가 설정되지 않았습니다. 환경변수를 확인하세요.",
-        )
+    """경쟁 채널을 등록하고 즉시 채널 정보를 수집합니다."""
+    workspace_id = await _resolve_workspace_id(request)
+    api_key = await _get_youtube_api_key(workspace_id, session, settings)
 
     from yaa_agents.competitor.collector import CompetitorCollector
 
-    # YouTube API로 채널 정보 조회
-    collector = CompetitorCollector(settings.youtube_api_key)
+    collector = CompetitorCollector(api_key)
     try:
-        channel_info = await collector.fetch_channel_info(request.youtube_channel_id)
+        channel_info = await collector.fetch_channel_info(body.youtube_channel_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=f"YouTube API 오류: {exc}")
 
-    # DB 저장
     repo = CompetitorRepository(session)
     competitor_id = str(uuid.uuid4())
     competitor = await repo.create(
         competitor_id=competitor_id,
         workspace_id=workspace_id,
-        youtube_channel_id=request.youtube_channel_id,
+        youtube_channel_id=body.youtube_channel_id,
         name=channel_info["name"],
     )
 
-    # 통계 업데이트
     await repo.update_channel_stats(
         competitor_id=competitor_id,
         name=channel_info["name"],
@@ -162,16 +186,14 @@ async def delete_competitor(
 @router.post("/{competitor_id}/refresh", response_model=CompetitorDetailResponse)
 async def refresh_competitor(
     competitor_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
     _admin_key_id: str | None = Depends(require_admin_scope),
     settings=Depends(get_settings),
 ) -> CompetitorDetailResponse:
     """경쟁 채널 데이터를 즉시 수집합니다."""
-    if not settings.youtube_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="YOUTUBE_API_KEY가 설정되지 않았습니다.",
-        )
+    workspace_id = await _resolve_workspace_id(request)
+    api_key = await _get_youtube_api_key(workspace_id, session, settings)
 
     repo = CompetitorRepository(session)
     competitor = await repo.get(competitor_id)
@@ -180,9 +202,8 @@ async def refresh_competitor(
 
     from yaa_agents.competitor.collector import CompetitorCollector
 
-    collector = CompetitorCollector(settings.youtube_api_key)
+    collector = CompetitorCollector(api_key)
 
-    # 채널 정보 수집
     try:
         channel_info = await collector.fetch_channel_info(competitor.youtube_channel_id)
     except (ValueError, RuntimeError) as exc:
@@ -197,7 +218,6 @@ async def refresh_competitor(
         thumbnail_url=channel_info.get("thumbnail_url"),
     )
 
-    # 최근 영상 수집
     try:
         videos = await collector.fetch_recent_videos(
             competitor.youtube_channel_id, max_results=20

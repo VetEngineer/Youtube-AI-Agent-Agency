@@ -64,6 +64,7 @@ class WorkspaceModel(Base):
     plan: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
     pipeline_quota: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     channel_quota: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    youtube_api_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     owner: Mapped[UserModel] = relationship(back_populates="workspaces", lazy="selectin")

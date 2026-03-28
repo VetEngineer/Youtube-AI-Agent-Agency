@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import Link from "next/link"
 import {
     Plus,
     TrendingUp,
@@ -40,6 +41,7 @@ import {
     ThumbsUp,
     MessageSquare,
     Clock,
+    Settings,
 } from "lucide-react"
 import {
     useCompetitors,
@@ -47,13 +49,11 @@ import {
     useDeleteCompetitor,
     useRefreshCompetitor,
     useCompetitor,
+    useIntegrations,
     type CompetitorChannelInfo,
     type CompetitorVideoInfo,
 } from "@/hooks/use-competitors"
 import { ApiError } from "@/lib/api"
-
-// 임시 workspace_id - 실제로는 auth context에서 가져와야 함
-const WORKSPACE_ID = "default"
 
 function formatNumber(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -365,9 +365,10 @@ export default function CompetitorsPage() {
     const [channelIdInput, setChannelIdInput] = useState("")
     const [addError, setAddError] = useState<string | null>(null)
 
-    const { data, isLoading, error } = useCompetitors(WORKSPACE_ID)
-    const addMutation = useAddCompetitor(WORKSPACE_ID)
-    const deleteMutation = useDeleteCompetitor(WORKSPACE_ID)
+    const { data, isLoading, error } = useCompetitors()
+    const { data: integrations } = useIntegrations()
+    const addMutation = useAddCompetitor()
+    const deleteMutation = useDeleteCompetitor()
 
     const handleAdd = async () => {
         if (!channelIdInput.trim()) return
@@ -458,6 +459,22 @@ export default function CompetitorsPage() {
                     </DialogContent>
                 </Dialog>
             </div>
+
+            {/* YouTube API Key 미설정 경고 */}
+            {integrations && !integrations.youtube_api_key_set && (
+                <div className="flex items-center gap-3 rounded-md border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-400">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>
+                        YouTube API Key가 설정되지 않았습니다. 채널 등록 및 데이터 수집을 위해 먼저 API Key를 입력하세요.
+                    </span>
+                    <Button variant="outline" size="sm" className="ml-auto shrink-0 border-yellow-500/40 text-yellow-400 hover:text-yellow-300" asChild>
+                        <Link href="/settings?tab=integrations">
+                            <Settings className="h-3 w-3 mr-1" />
+                            설정하기
+                        </Link>
+                    </Button>
+                </div>
+            )}
 
             {/* 로딩 */}
             {isLoading && (
