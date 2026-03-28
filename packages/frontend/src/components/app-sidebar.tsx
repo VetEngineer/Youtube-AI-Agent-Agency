@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Settings, Youtube, Activity, BookOpen, Rocket, TrendingUp } from "lucide-react";
+import { useSession, signOut } from "next-auth/react";
+import { Home, Settings, Youtube, Activity, BookOpen, Rocket, TrendingUp, LogOut, ChevronUp, User } from "lucide-react";
 
 import {
   Sidebar,
@@ -21,6 +22,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const items = [
   {
@@ -57,6 +65,7 @@ const items = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   const isActive = (url: string) => {
     if (url === "/") {
@@ -64,6 +73,10 @@ export function AppSidebar() {
     }
     return pathname === url || pathname.startsWith(url + "/");
   };
+
+  const displayName = session?.user?.name || session?.user?.email?.split("@")[0] || "사용자";
+  const displayEmail = session?.user?.email || "";
+  const avatarFallback = displayName.charAt(0).toUpperCase();
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -94,6 +107,7 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
+
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -125,6 +139,57 @@ export function AppSidebar() {
                   온보딩 마법사로 첫 채널과 파이프라인을 설정합니다
                 </TooltipContent>
               </Tooltip>
+            </SidebarMenuItem>
+
+            {/* 프로필 / 로그아웃 */}
+            <SidebarMenuItem>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton className="h-10">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                      {session?.user?.image ? (
+                        <img
+                          src={session.user.image}
+                          alt={displayName}
+                          className="h-6 w-6 rounded-full object-cover"
+                        />
+                      ) : (
+                        avatarFallback
+                      )}
+                    </div>
+                    <div className="flex min-w-0 flex-col text-left">
+                      <span className="truncate text-sm font-medium">{displayName}</span>
+                      {displayEmail && (
+                        <span className="truncate text-xs text-muted-foreground">{displayEmail}</span>
+                      )}
+                    </div>
+                    <ChevronUp className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="start" className="w-56">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium">{displayName}</p>
+                    {displayEmail && (
+                      <p className="text-xs text-muted-foreground truncate">{displayEmail}</p>
+                    )}
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      계정 설정
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive cursor-pointer"
+                    onClick={() => signOut({ callbackUrl: "/login" })}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    로그아웃
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
