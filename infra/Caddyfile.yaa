@@ -1,0 +1,14 @@
+# yaa.hakhamsolution.co.kr 추가분
+# xeo-analyzer의 Caddyfile에 병합 필요
+
+yaa.hakhamsolution.co.kr {
+  encode gzip zstd
+
+  handle /api/* {
+    reverse_proxy host.docker.internal:8001
+  }
+
+  handle {
+    reverse_proxy host.docker.internal:8001
+  }
+}

@@ -1,0 +1,43 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: yaa:latest
+    container_name: yaa-api
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - TOSS_CLIENT_KEY=${TOSS_CLIENT_KEY:-}
+      - TOSS_SECRET_KEY=${TOSS_SECRET_KEY:-}
+      - TOSS_WEBHOOK_SECRET=${TOSS_WEBHOOK_SECRET:-}
+      - DISABLE_AUTH=${DISABLE_AUTH:-false}
+    ports:
+      - "8001:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  worker:
+    image: yaa:latest
+    container_name: yaa-worker
+    restart: unless-stopped
+    command: ["/app/worker-entrypoint.sh"]
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - DISABLE_AUTH=${DISABLE_AUTH:-false}
+    depends_on:
+      api:
+        condition: service_healthy
