@@ -1,0 +1,40 @@
+FROM python:3.11-slim
+
+# API 서버에 필요한 최소 패키지만 설치 (ffmpeg 제외 - media 기능 불필요)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+COPY pyproject.toml ./
+COPY packages/core/pyproject.toml packages/core/
+COPY packages/agents/pyproject.toml packages/agents/
+COPY packages/api/pyproject.toml packages/api/
+
+# Create minimal package dirs for editable install
+RUN mkdir -p packages/core/yaa_core packages/agents/yaa_agents packages/api/yaa_app && \
+    touch packages/core/yaa_core/__init__.py packages/agents/yaa_agents/__init__.py packages/api/yaa_app/__init__.py
+
+# media/rag 제외: torch, whisper, chromadb, moviepy → NVIDIA CUDA 의존성 없음
+# publisher, search는 포함 (YouTube OAuth, 검색 기능)
+RUN uv pip install --system \
+    -e packages/core \
+    -e "packages/agents[publisher,search]" \
+    -e "packages/api[all]"
+
+COPY packages/ packages/
+COPY channels channels
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+COPY entrypoint.sh /app/entrypoint.sh
+COPY worker-entrypoint.sh /app/worker-entrypoint.sh
+RUN chmod +x /app/entrypoint.sh /app/worker-entrypoint.sh
+
+CMD ["/app/entrypoint.sh"]
