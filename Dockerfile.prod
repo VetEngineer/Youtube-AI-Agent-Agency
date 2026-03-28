@@ -18,12 +18,12 @@ COPY packages/api/pyproject.toml packages/api/
 RUN mkdir -p packages/core/yaa_core packages/agents/yaa_agents packages/api/yaa_app && \
     touch packages/core/yaa_core/__init__.py packages/agents/yaa_agents/__init__.py packages/api/yaa_app/__init__.py
 
-# media/rag 제외: torch, whisper, chromadb, moviepy → NVIDIA CUDA 의존성 없음
-# publisher, search는 포함 (YouTube OAuth, 검색 기능)
+# api[all]은 agents[media,rag] 포함으로 torch/NVIDIA 의존성 발생 → 직접 지정
+# media/rag 제외: torch, whisper, chromadb, moviepy 없음
 RUN uv pip install --system \
     -e packages/core \
     -e "packages/agents[publisher,search]" \
-    -e "packages/api[all]"
+    -e "packages/api[auth,billing,queue,monitoring]"
 
 COPY packages/ packages/
 COPY channels channels
