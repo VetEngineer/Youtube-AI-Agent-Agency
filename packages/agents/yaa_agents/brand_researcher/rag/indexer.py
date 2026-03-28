@@ -146,11 +146,13 @@ class BrandIndexer:
             chunks = self._chunk_text(doc)
             for i, chunk in enumerate(chunks):
                 all_chunks.append(chunk)
-                all_metadatas.append({
-                    "source_type": source_type,
-                    "source_name": name,
-                    "chunk_index": i,
-                })
+                all_metadatas.append(
+                    {
+                        "source_type": source_type,
+                        "source_name": name,
+                        "chunk_index": i,
+                    }
+                )
                 all_ids.append(f"{channel_id}_{source_type}_{name}_{i}")
 
         if not all_chunks:

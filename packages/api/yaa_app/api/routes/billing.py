@@ -156,9 +156,7 @@ async def create_checkout_session(
         metadata={"workspace_id": workspace_id, "plan": body.plan},
     )
 
-    logger.info(
-        "Checkout 세션 생성: workspace=%s plan=%s", workspace_id, body.plan
-    )
+    logger.info("Checkout 세션 생성: workspace=%s plan=%s", workspace_id, body.plan)
     return CheckoutResponse(checkout_url=checkout_session.url)
 
 
@@ -220,9 +218,7 @@ async def get_subscription(
         plan=subscription.plan,
         status=subscription.status,
         current_period_end=(
-            subscription.current_period_end.isoformat()
-            if subscription.current_period_end
-            else None
+            subscription.current_period_end.isoformat() if subscription.current_period_end else None
         ),
     )
 
@@ -251,9 +247,7 @@ async def stripe_webhook(
         )
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, settings.stripe_webhook_secret
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, settings.stripe_webhook_secret)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -286,9 +280,7 @@ async def stripe_webhook(
 # ============================================
 
 
-async def _handle_checkout_completed(
-    data: dict, session: AsyncSession
-) -> None:
+async def _handle_checkout_completed(data: dict, session: AsyncSession) -> None:
     """checkout.session.completed 이벤트를 처리합니다."""
     workspace_id = data.get("metadata", {}).get("workspace_id")
     plan = data.get("metadata", {}).get("plan", "pro")
@@ -330,9 +322,7 @@ async def _handle_checkout_completed(
         channel_quota=quotas["max_channels"],
     )
 
-    logger.info(
-        "구독 생성/업데이트: workspace=%s plan=%s", workspace_id, plan
-    )
+    logger.info("구독 생성/업데이트: workspace=%s plan=%s", workspace_id, plan)
 
 
 async def _handle_subscription_updated(
@@ -367,13 +357,9 @@ async def _handle_subscription_updated(
 
     update_kwargs: dict = {"status": mapped_status}
     if period_start:
-        update_kwargs["current_period_start"] = datetime.fromtimestamp(
-            period_start, tz=UTC
-        )
+        update_kwargs["current_period_start"] = datetime.fromtimestamp(period_start, tz=UTC)
     if period_end:
-        update_kwargs["current_period_end"] = datetime.fromtimestamp(
-            period_end, tz=UTC
-        )
+        update_kwargs["current_period_end"] = datetime.fromtimestamp(period_end, tz=UTC)
 
     # 요금제 변경 확인 (items.data[0].price)
     items = data.get("items", {}).get("data", [])
@@ -403,9 +389,7 @@ async def _handle_subscription_updated(
     )
 
 
-async def _handle_subscription_deleted(
-    data: dict, session: AsyncSession
-) -> None:
+async def _handle_subscription_deleted(data: dict, session: AsyncSession) -> None:
     """customer.subscription.deleted 이벤트를 처리합니다."""
     stripe_sub_id = data.get("id")
     if not stripe_sub_id:
@@ -787,7 +771,9 @@ async def toss_webhook(
 
         logger.info(
             "Toss 결제 상태 변경: order_id=%s status=%s payment_key=%s",
-            order_id, toss_status, payment_key,
+            order_id,
+            toss_status,
+            payment_key,
         )
 
         if toss_status == "DONE" and payment_key:

@@ -54,9 +54,7 @@ class PlanUsageResponse(BaseModel):
     pipelines_limit: int = Field(..., description="월간 파이프라인 한도 (-1: 무제한)")
     channels_used: int = Field(..., description="현재 채널 수")
     channels_limit: int = Field(..., description="최대 채널 한도 (-1: 무제한)")
-    features: dict[str, bool] = Field(
-        default_factory=dict, description="기능별 사용 가능 여부"
-    )
+    features: dict[str, bool] = Field(default_factory=dict, description="기능별 사용 가능 여부")
 
 
 # ============================================

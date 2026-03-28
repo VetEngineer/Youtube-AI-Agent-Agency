@@ -53,16 +53,12 @@ class UserRepository:
 
     async def get(self, user_id: str) -> UserModel | None:
         """사용자 ID로 조회합니다."""
-        result = await self._session.execute(
-            select(UserModel).where(UserModel.id == user_id)
-        )
+        result = await self._session.execute(select(UserModel).where(UserModel.id == user_id))
         return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> UserModel | None:
         """이메일로 사용자를 조회합니다."""
-        result = await self._session.execute(
-            select(UserModel).where(UserModel.email == email)
-        )
+        result = await self._session.execute(select(UserModel).where(UserModel.email == email))
         return result.scalar_one_or_none()
 
     async def get_or_create_by_oauth(
@@ -149,9 +145,7 @@ class WorkspaceRepository:
     async def update(self, workspace_id: str, **kwargs: Any) -> None:
         """워크스페이스 정보를 업데이트합니다."""
         await self._session.execute(
-            update(WorkspaceModel)
-            .where(WorkspaceModel.id == workspace_id)
-            .values(**kwargs)
+            update(WorkspaceModel).where(WorkspaceModel.id == workspace_id).values(**kwargs)
         )
 
 
@@ -340,10 +334,7 @@ class RunRepository:
         rows = result.all()
         if not rows:
             return None
-        durations = [
-            (row.completed_at - row.created_at).total_seconds()
-            for row in rows
-        ]
+        durations = [(row.completed_at - row.created_at).total_seconds() for row in rows]
         return sum(durations) / len(durations)
 
     async def count_monthly(self, workspace_id: str) -> int:
@@ -586,9 +577,7 @@ class UsageRepository:
         if workspace_id is not None:
             conditions.append(
                 UsageEventModel.run_id.in_(
-                    select(PipelineRunModel.id).where(
-                        PipelineRunModel.workspace_id == workspace_id
-                    )
+                    select(PipelineRunModel.id).where(PipelineRunModel.workspace_id == workspace_id)
                 )
             )
         return conditions
@@ -750,15 +739,11 @@ class SubscriptionRepository:
     async def get_by_workspace(self, workspace_id: str) -> SubscriptionModel | None:
         """워크스페이스 ID로 구독을 조회합니다."""
         result = await self._session.execute(
-            select(SubscriptionModel).where(
-                SubscriptionModel.workspace_id == workspace_id
-            )
+            select(SubscriptionModel).where(SubscriptionModel.workspace_id == workspace_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_by_stripe_customer(
-        self, stripe_customer_id: str
-    ) -> SubscriptionModel | None:
+    async def get_by_stripe_customer(self, stripe_customer_id: str) -> SubscriptionModel | None:
         """Stripe 고객 ID로 구독을 조회합니다."""
         result = await self._session.execute(
             select(SubscriptionModel).where(
@@ -822,9 +807,7 @@ class OAuthTokenRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_by_workspace(
-        self, workspace_id: str
-    ) -> list[CompetitorChannelModel]:
+    async def list_by_workspace(self, workspace_id: str) -> list[CompetitorChannelModel]:
         """워크스페이스의 경쟁 채널 목록을 조회합니다."""
         result = await self._session.execute(
             select(CompetitorChannelModel)
@@ -836,9 +819,7 @@ class OAuthTokenRepository:
     async def list_active_all(self) -> list[CompetitorChannelModel]:
         """모든 워크스페이스의 활성 경쟁 채널을 조회합니다 (cron 수집용)."""
         result = await self._session.execute(
-            select(CompetitorChannelModel).where(
-                CompetitorChannelModel.is_active.is_(True)
-            )
+            select(CompetitorChannelModel).where(CompetitorChannelModel.is_active.is_(True))
         )
         return list(result.scalars().all())
 

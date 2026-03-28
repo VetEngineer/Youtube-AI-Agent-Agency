@@ -24,9 +24,7 @@ class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """LogRecord를 JSON 문자열로 포맷합니다."""
         log_data: dict[str, Any] = {
-            "timestamp": datetime.fromtimestamp(
-                record.created, tz=UTC
-            ).isoformat(),
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -44,11 +42,28 @@ class JSONFormatter(logging.Formatter):
 
         # extra 필드 병합 (표준 필드 제외)
         standard_keys = {
-            "name", "msg", "args", "created", "relativeCreated",
-            "exc_info", "exc_text", "stack_info", "lineno", "funcName",
-            "pathname", "filename", "module", "levelno", "levelname",
-            "msecs", "thread", "threadName", "process", "processName",
-            "message", "taskName",
+            "name",
+            "msg",
+            "args",
+            "created",
+            "relativeCreated",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "lineno",
+            "funcName",
+            "pathname",
+            "filename",
+            "module",
+            "levelno",
+            "levelname",
+            "msecs",
+            "thread",
+            "threadName",
+            "process",
+            "processName",
+            "message",
+            "taskName",
         }
         for key, value in record.__dict__.items():
             if key not in standard_keys and not key.startswith("_"):

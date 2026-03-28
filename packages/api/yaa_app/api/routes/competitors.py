@@ -219,9 +219,7 @@ async def refresh_competitor(
     )
 
     try:
-        videos = await collector.fetch_recent_videos(
-            competitor.youtube_channel_id, max_results=20
-        )
+        videos = await collector.fetch_recent_videos(competitor.youtube_channel_id, max_results=20)
     except (ValueError, RuntimeError) as exc:
         logger.warning("영상 수집 실패 (competitor_id=%s): %s", competitor_id, exc)
         videos = []

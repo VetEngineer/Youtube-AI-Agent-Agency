@@ -58,9 +58,7 @@ def _build_agent_registry(
     channel_registry = ChannelRegistry(settings.channels_dir)
 
     br_callbacks = [collector.create_callback("brand_researcher", "openai")] if collector else None
-    sw_callbacks = (
-        [collector.create_callback("script_writer", "anthropic")] if collector else None
-    )
+    sw_callbacks = [collector.create_callback("script_writer", "anthropic")] if collector else None
     seo_callbacks = [collector.create_callback("seo_optimizer", "openai")] if collector else None
 
     brand_researcher_llm = create_openai_client(callbacks=br_callbacks)

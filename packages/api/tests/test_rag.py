@@ -214,7 +214,9 @@ class TestAgentRAGIntegration:
         mock_llm = MagicMock()
         mock_registry = MagicMock(spec=ChannelRegistry)
         agent = BrandResearcherAgent(
-            llm=mock_llm, registry=mock_registry, rag_enabled=False,
+            llm=mock_llm,
+            registry=mock_registry,
+            rag_enabled=False,
         )
 
         original = CollectionResult(
@@ -232,7 +234,9 @@ class TestAgentRAGIntegration:
         mock_llm = MagicMock()
         mock_registry = MagicMock(spec=ChannelRegistry)
         agent = BrandResearcherAgent(
-            llm=mock_llm, registry=mock_registry, rag_enabled=True,
+            llm=mock_llm,
+            registry=mock_registry,
+            rag_enabled=True,
         )
 
         original = CollectionResult(
@@ -262,7 +266,9 @@ class TestAgentRAGIntegration:
         mock_llm = MagicMock()
         mock_registry = MagicMock(spec=ChannelRegistry)
         agent = BrandResearcherAgent(
-            llm=mock_llm, registry=mock_registry, rag_enabled=True,
+            llm=mock_llm,
+            registry=mock_registry,
+            rag_enabled=True,
         )
 
         original = CollectionResult(
@@ -287,7 +293,9 @@ class TestAgentRAGIntegration:
         mock_llm = MagicMock()
         mock_registry = MagicMock(spec=ChannelRegistry)
         agent = BrandResearcherAgent(
-            llm=mock_llm, registry=mock_registry, rag_enabled=True,
+            llm=mock_llm,
+            registry=mock_registry,
+            rag_enabled=True,
         )
 
         original = CollectionResult(

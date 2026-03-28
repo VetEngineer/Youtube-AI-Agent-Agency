@@ -126,9 +126,7 @@ class CompetitorCollector:
             or thumbnails.get("default", {}).get("url")
         )
 
-        uploads_playlist_id = (
-            content_details.get("relatedPlaylists", {}).get("uploads", "")
-        )
+        uploads_playlist_id = content_details.get("relatedPlaylists", {}).get("uploads", "")
 
         return {
             "name": snippet.get("title", ""),
@@ -227,9 +225,7 @@ class CompetitorCollector:
 
             published_at_str = snippet.get("publishedAt", "")
             published_at = (
-                _parse_published_at(published_at_str)
-                if published_at_str
-                else datetime.utcnow()
+                _parse_published_at(published_at_str) if published_at_str else datetime.utcnow()
             )
 
             duration_str = content_details.get("duration", "")

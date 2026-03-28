@@ -111,9 +111,7 @@ async def _execute_pipeline(
                         **event,
                     )
                 await session.commit()
-            logger.info(
-                "사용량 이벤트 저장: run_id=%s, count=%d", run_id, len(collector.events)
-            )
+            logger.info("사용량 이벤트 저장: run_id=%s, count=%d", run_id, len(collector.events))
         except Exception:
             logger.exception("사용량 이벤트 저장 실패: run_id=%s", run_id)
 

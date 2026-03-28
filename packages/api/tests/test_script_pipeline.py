@@ -162,9 +162,7 @@ async def test_strategist_returns_outline(
     mock_llm, sample_plan, sample_outline, sample_brand_guide
 ):
     """StrategistAgent가 ScriptOutline을 반환한다."""
-    mock_llm.ainvoke.return_value = MagicMock(
-        content=_make_outline_response(sample_outline)
-    )
+    mock_llm.ainvoke.return_value = MagicMock(content=_make_outline_response(sample_outline))
     agent = StrategistAgent(mock_llm)
 
     result = await agent.plan_outline(sample_plan, sample_brand_guide.tone_and_manner)

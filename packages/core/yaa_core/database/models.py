@@ -32,9 +32,7 @@ class UserModel(Base):
         DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
-    workspaces: Mapped[list[WorkspaceModel]] = relationship(
-        back_populates="owner", lazy="selectin"
-    )
+    workspaces: Mapped[list[WorkspaceModel]] = relationship(back_populates="owner", lazy="selectin")
 
     def to_dict(self) -> dict:
         """딕셔너리로 변환합니다."""
@@ -94,9 +92,7 @@ class SubscriptionModel(Base):
         nullable=False,
         index=True,
     )
-    stripe_customer_id: Mapped[str] = mapped_column(
-        String(100), nullable=False, index=True
-    )
+    stripe_customer_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     stripe_subscription_id: Mapped[str | None] = mapped_column(
         String(100), nullable=True, unique=True
     )
@@ -104,15 +100,9 @@ class SubscriptionModel(Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="active"
     )  # active, canceled, past_due
-    current_period_start: Mapped[datetime | None] = mapped_column(
-        DateTime, nullable=True
-    )
-    current_period_end: Mapped[datetime | None] = mapped_column(
-        DateTime, nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC)
-    )
+    current_period_start: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     def to_dict(self) -> dict:
         """딕셔너리로 변환합니다."""
@@ -124,14 +114,10 @@ class SubscriptionModel(Base):
             "plan": self.plan,
             "status": self.status,
             "current_period_start": (
-                self.current_period_start.isoformat()
-                if self.current_period_start
-                else None
+                self.current_period_start.isoformat() if self.current_period_start else None
             ),
             "current_period_end": (
-                self.current_period_end.isoformat()
-                if self.current_period_end
-                else None
+                self.current_period_end.isoformat() if self.current_period_end else None
             ),
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

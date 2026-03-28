@@ -37,16 +37,12 @@ LLM_PRICING: dict[str, dict[str, dict[str, float]]] = {
 }
 
 
-def calculate_cost(
-    provider: str, model: str, prompt_tokens: int, completion_tokens: int
-) -> float:
+def calculate_cost(provider: str, model: str, prompt_tokens: int, completion_tokens: int) -> float:
     """LLM 사용 비용을 계산합니다."""
     provider_pricing = LLM_PRICING.get(provider, {})
     model_pricing = provider_pricing.get(model)
     if model_pricing is None:
-        logger.warning(
-            "알 수 없는 모델 비용 0 처리: provider=%s, model=%s", provider, model
-        )
+        logger.warning("알 수 없는 모델 비용 0 처리: provider=%s, model=%s", provider, model)
         return 0.0
     return (prompt_tokens * model_pricing["prompt"]) + (
         completion_tokens * model_pricing["completion"]
@@ -87,9 +83,7 @@ class UsageTrackingCallback(BaseCallbackHandler):
 
             prompt_tokens = token_usage.get("prompt_tokens", 0) or 0
             completion_tokens = token_usage.get("completion_tokens", 0) or 0
-            total_tokens = token_usage.get("total_tokens", 0) or (
-                prompt_tokens + completion_tokens
-            )
+            total_tokens = token_usage.get("total_tokens", 0) or (prompt_tokens + completion_tokens)
             model = llm_output.get("model_name") or llm_output.get("model", "unknown")
 
             cost = calculate_cost(self.provider, model, prompt_tokens, completion_tokens)

@@ -115,9 +115,7 @@ def _normalize_path(path: str) -> str:
 class PrometheusMiddleware(BaseHTTPMiddleware):
     """HTTP 요청 메트릭을 수집하는 미들웨어."""
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if request.url.path in _METRICS_EXCLUDED_PATHS:
             return await call_next(request)
 
@@ -128,9 +126,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         duration = time.monotonic() - start
 
-        http_requests_total.labels(
-            method=method, path=path, status=str(response.status_code)
-        ).inc()
+        http_requests_total.labels(method=method, path=path, status=str(response.status_code)).inc()
         http_request_duration_seconds.labels(method=method, path=path).observe(duration)
 
         return response

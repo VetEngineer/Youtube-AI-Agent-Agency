@@ -34,9 +34,7 @@ async def _save_usage_events(
                     **event,
                 )
             await session.commit()
-        logger.info(
-            "사용량 이벤트 저장: run_id=%s, count=%d", run_id, len(collector.events)
-        )
+        logger.info("사용량 이벤트 저장: run_id=%s, count=%d", run_id, len(collector.events))
     except Exception:
         logger.exception("사용량 이벤트 저장 실패: run_id=%s", run_id)
 
@@ -211,9 +209,7 @@ async def monitor_competitors_task(ctx: dict[str, Any]) -> dict[str, Any]:
             errors.append(error_msg)
             logger.warning("경쟁 채널 수집 실패: %s", error_msg)
 
-    logger.info(
-        "경쟁 채널 수집 완료 - 성공: %d, 실패: %d", collected, len(errors)
-    )
+    logger.info("경쟁 채널 수집 완료 - 성공: %d, 실패: %d", collected, len(errors))
     return {"status": "ok", "collected": collected, "errors": errors}
 
 
