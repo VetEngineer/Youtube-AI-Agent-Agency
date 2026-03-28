@@ -6,6 +6,8 @@ import logging
 import uuid
 from typing import Any
 
+from yaa_agents.orchestrator import compile_pipeline, create_initial_state
+
 from yaa_app.cli import _build_agent_registry
 
 logger = logging.getLogger(__name__)
@@ -60,7 +62,6 @@ async def execute_pipeline_task(
     Returns:
         실행 결과 딕셔너리
     """
-    from yaa_agents.orchestrator import compile_pipeline, create_initial_state
     from yaa_core.database.engine import get_session_factory
     from yaa_core.database.repositories import RunRepository
     from yaa_core.shared.config import AppSettings

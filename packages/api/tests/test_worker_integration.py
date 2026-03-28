@@ -40,9 +40,9 @@ class TestWorkerPipelineIntegration:
     async def test_execute_pipeline_task_completes(self, session_factory, run_id):
         """execute_pipeline_task 실행 후 DB 상태가 completed로 변경됩니다."""
         from yaa_app.worker.tasks import execute_pipeline_task
-        from yaa_core.shared.models import ContentStatus
         from yaa_core.database.engine import set_session_factory
         from yaa_core.database.repositories import RunRepository
+        from yaa_core.shared.models import ContentStatus
 
         set_session_factory(session_factory)
 

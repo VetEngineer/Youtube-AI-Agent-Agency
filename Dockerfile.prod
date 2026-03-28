@@ -23,7 +23,8 @@ RUN mkdir -p packages/core/yaa_core packages/agents/yaa_agents packages/api/yaa_
 RUN uv pip install --system \
     -e packages/core \
     -e "packages/agents[publisher,search]" \
-    -e "packages/api[auth,billing,queue,monitoring]"
+    -e "packages/api[auth,billing,queue,monitoring]" \
+    psycopg2-binary
 
 COPY packages/ packages/
 COPY channels channels
