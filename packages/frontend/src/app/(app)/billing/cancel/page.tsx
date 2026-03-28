@@ -13,17 +13,17 @@ export default function BillingCancelPage() {
                 <XCircle className="h-8 w-8 text-red-500" />
             </div>
             <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">Payment Cancelled</h2>
+                <h2 className="text-2xl font-bold">결제가 취소되었습니다</h2>
                 <p className="text-muted-foreground">
-                    Your payment was cancelled. No charges were made.
+                    결제가 취소되었습니다. 요금이 청구되지 않았습니다.
                 </p>
             </div>
             <div className="flex items-center gap-3">
                 <Button onClick={() => router.push('/settings')}>
-                    Back to Settings
+                    설정으로 돌아가기
                 </Button>
                 <Button variant="outline" onClick={() => router.push('/')}>
-                    Go to Dashboard
+                    대시보드로 이동
                 </Button>
             </div>
         </div>

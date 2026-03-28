@@ -54,6 +54,7 @@ class AppSettings(BaseSettings):
     tavily_api_key: str = ""
     youtube_client_id: str = ""
     youtube_client_secret: str = ""
+    youtube_api_key: str = ""  # Data API v3 서버키 (경쟁 채널 공개 데이터 수집용)
     channels_dir: str = "./channels"
     log_level: str = "INFO"
     log_format: str = "text"  # json | text

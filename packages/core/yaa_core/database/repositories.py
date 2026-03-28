@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -11,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.models import (
     ApiKeyModel,
     AuditLogModel,
+    CompetitorChannelModel,
+    CompetitorVideoModel,
     PipelineRunModel,
     SubscriptionModel,
     UsageEventModel,
@@ -758,3 +761,153 @@ class SubscriptionRepository:
             .where(SubscriptionModel.id == subscription_id)
             .values(**kwargs)
         )
+
+
+class CompetitorRepository:
+    """경쟁 채널 저장소."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        competitor_id: str,
+        workspace_id: str,
+        youtube_channel_id: str,
+        name: str,
+    ) -> CompetitorChannelModel:
+        """새 경쟁 채널을 등록합니다."""
+        competitor = CompetitorChannelModel(
+            id=competitor_id,
+            workspace_id=workspace_id,
+            youtube_channel_id=youtube_channel_id,
+            name=name,
+        )
+        self._session.add(competitor)
+        await self._session.flush()
+        return competitor
+
+    async def get(self, competitor_id: str) -> CompetitorChannelModel | None:
+        """ID로 경쟁 채널을 조회합니다."""
+        result = await self._session.execute(
+            select(CompetitorChannelModel).where(CompetitorChannelModel.id == competitor_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_by_workspace(
+        self, workspace_id: str
+    ) -> list[CompetitorChannelModel]:
+        """워크스페이스의 경쟁 채널 목록을 조회합니다."""
+        result = await self._session.execute(
+            select(CompetitorChannelModel)
+            .where(CompetitorChannelModel.workspace_id == workspace_id)
+            .order_by(CompetitorChannelModel.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    async def list_active_all(self) -> list[CompetitorChannelModel]:
+        """모든 워크스페이스의 활성 경쟁 채널을 조회합니다 (cron 수집용)."""
+        result = await self._session.execute(
+            select(CompetitorChannelModel).where(
+                CompetitorChannelModel.is_active.is_(True)
+            )
+        )
+        return list(result.scalars().all())
+
+    async def update_channel_stats(
+        self,
+        competitor_id: str,
+        name: str,
+        description: str | None,
+        subscriber_count: int,
+        video_count: int,
+        thumbnail_url: str | None,
+    ) -> None:
+        """채널 통계 정보를 업데이트합니다."""
+        await self._session.execute(
+            update(CompetitorChannelModel)
+            .where(CompetitorChannelModel.id == competitor_id)
+            .values(
+                name=name,
+                description=description,
+                subscriber_count=subscriber_count,
+                video_count=video_count,
+                thumbnail_url=thumbnail_url,
+                last_crawled_at=datetime.now(UTC),
+            )
+        )
+
+    async def delete(self, competitor_id: str) -> None:
+        """경쟁 채널을 삭제합니다 (cascade로 영상도 삭제됨)."""
+        competitor = await self.get(competitor_id)
+        if competitor is not None:
+            await self._session.delete(competitor)
+            await self._session.flush()
+
+    async def upsert_video(
+        self,
+        video_id_internal: str,
+        competitor_channel_id: str,
+        video_id: str,
+        title: str,
+        description: str | None,
+        view_count: int,
+        like_count: int,
+        comment_count: int,
+        published_at: datetime,
+        tags: list[str],
+        duration_seconds: int | None,
+        thumbnail_url: str | None,
+    ) -> None:
+        """영상 데이터를 upsert합니다 (신규 추가 또는 통계 업데이트)."""
+        result = await self._session.execute(
+            select(CompetitorVideoModel).where(
+                CompetitorVideoModel.competitor_channel_id == competitor_channel_id,
+                CompetitorVideoModel.video_id == video_id,
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing is not None:
+            await self._session.execute(
+                update(CompetitorVideoModel)
+                .where(CompetitorVideoModel.id == existing.id)
+                .values(
+                    title=title,
+                    description=description,
+                    view_count=view_count,
+                    like_count=like_count,
+                    comment_count=comment_count,
+                    tags_json=json.dumps(tags, ensure_ascii=False),
+                    collected_at=datetime.now(UTC),
+                )
+            )
+        else:
+            video = CompetitorVideoModel(
+                id=video_id_internal,
+                competitor_channel_id=competitor_channel_id,
+                video_id=video_id,
+                title=title,
+                description=description,
+                view_count=view_count,
+                like_count=like_count,
+                comment_count=comment_count,
+                published_at=published_at,
+                tags_json=json.dumps(tags, ensure_ascii=False),
+                duration_seconds=duration_seconds,
+                thumbnail_url=thumbnail_url,
+            )
+            self._session.add(video)
+            await self._session.flush()
+
+    async def list_videos(
+        self, competitor_channel_id: str, limit: int = 20
+    ) -> list[CompetitorVideoModel]:
+        """경쟁 채널의 영상 목록을 최신순으로 조회합니다."""
+        result = await self._session.execute(
+            select(CompetitorVideoModel)
+            .where(CompetitorVideoModel.competitor_channel_id == competitor_channel_id)
+            .order_by(CompetitorVideoModel.published_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())

@@ -1,4 +1,5 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1';
+export const API_KEY_STORAGE_KEY = 'api_key';
 
 export class ApiError extends Error {
     constructor(public status: number, message: string) {
@@ -7,30 +8,38 @@ export class ApiError extends Error {
     }
 }
 
-async function getAuthToken(): Promise<string | null> {
+export function getStoredApiKey(): string | null {
     if (typeof window === 'undefined') return null;
 
-    try {
-        const res = await fetch('/api/auth/session');
-        const session = await res.json();
-        // NextAuth v5는 세션에 직접 접근. JWT를 백엔드에 전달하려면
-        // 세션 쿠키를 사용하거나, 커스텀 토큰 엔드포인트 사용.
-        // 여기서는 API 키 폴백도 지원.
-        if (session?.user) {
-            // NextAuth JWT를 직접 전달할 수 없으므로 세션 기반 프록시 사용
-            // 또는 localStorage의 API 키 폴백
-            const apiKey = localStorage.getItem('api_key');
-            return apiKey;
-        }
-    } catch {
-        // 세션 조회 실패 시 API 키 폴백
+    const sessionKey = window.sessionStorage.getItem(API_KEY_STORAGE_KEY);
+    if (sessionKey) {
+        return sessionKey;
     }
 
-    return localStorage.getItem('api_key');
+    const legacyKey = window.localStorage.getItem(API_KEY_STORAGE_KEY);
+    if (legacyKey) {
+        window.sessionStorage.setItem(API_KEY_STORAGE_KEY, legacyKey);
+        window.localStorage.removeItem(API_KEY_STORAGE_KEY);
+        return legacyKey;
+    }
+
+    return null;
+}
+
+export function setStoredApiKey(apiKey: string): void {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
+    window.localStorage.removeItem(API_KEY_STORAGE_KEY);
+}
+
+export function clearStoredApiKey(): void {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.removeItem(API_KEY_STORAGE_KEY);
+    window.localStorage.removeItem(API_KEY_STORAGE_KEY);
 }
 
 async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const apiKey = typeof window !== 'undefined' ? localStorage.getItem('api_key') : null;
+    const apiKey = getStoredApiKey();
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',

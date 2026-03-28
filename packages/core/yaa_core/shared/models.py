@@ -192,6 +192,41 @@ Script.model_rebuild()
 
 
 # ============================================
+# Script Pipeline 중간 모델 (Strategist/Auditor)
+# ============================================
+
+
+class MainPoint(BaseModel):
+    """Strategist가 기획한 본론 포인트."""
+
+    title: str = ""
+    key_message: str = ""
+    example: str = ""
+
+
+class ScriptOutline(BaseModel):
+    """Strategist Agent 출력 - 원고 작성 전 아웃라인."""
+
+    opening_hook: str = ""
+    opening_promise: str = ""
+    main_points: list[MainPoint] = Field(default_factory=list)
+    closing_summary: str = ""
+    closing_action: str = ""
+
+
+class AuditResult(BaseModel):
+    """Auditor Agent 출력 - 원고 검수 결과."""
+
+    passed: bool = False
+    structure_ok: bool = False
+    style_ok: bool = False
+    forbidden_words_ok: bool = True
+    retention_hooks_ok: bool = False
+    feedback: str = ""
+    revision_instructions: list[str] = Field(default_factory=list)
+
+
+# ============================================
 # Media Generator 입출력
 # ============================================
 

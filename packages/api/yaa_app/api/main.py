@@ -18,12 +18,16 @@ from yaa_app.api.routes import (
     auth,
     billing,
     channels,
+    competitors,
     dashboard,
     pipeline,
     plans,
     status,
     usage,
     users,
+)
+from yaa_app.api.routes import (
+    settings as settings_routes,
 )
 
 logger = logging.getLogger(__name__)
@@ -90,12 +94,18 @@ def create_app() -> FastAPI:
     application.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
     application.include_router(pipeline.router, prefix="/api/v1/pipeline", tags=["pipeline"])
     application.include_router(channels.router, prefix="/api/v1/channels", tags=["channels"])
+    application.include_router(
+        competitors.router, prefix="/api/v1/competitors", tags=["competitors"]
+    )
     application.include_router(status.router, prefix="/api/v1", tags=["status"])
     application.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
     application.include_router(usage.router, prefix="/api/v1/usage", tags=["usage"])
     application.include_router(users.router, prefix="/api/v1/users", tags=["users"])
     application.include_router(plans.router, prefix="/api/v1/plans", tags=["plans"])
     application.include_router(billing.router, prefix="/api/v1/billing", tags=["billing"])
+    application.include_router(
+        settings_routes.router, prefix="/api/v1/settings", tags=["settings"]
+    )
 
     return application
 

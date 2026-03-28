@@ -20,3 +20,11 @@ const localStorageMock = {
   clear: vi.fn(),
 };
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+
+const sessionStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+};
+Object.defineProperty(window, 'sessionStorage', { value: sessionStorageMock });

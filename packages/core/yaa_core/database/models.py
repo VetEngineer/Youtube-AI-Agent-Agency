@@ -64,6 +64,7 @@ class WorkspaceModel(Base):
     plan: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
     pipeline_quota: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     channel_quota: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    youtube_api_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     owner: Mapped[UserModel] = relationship(back_populates="workspaces", lazy="selectin")
@@ -252,6 +253,99 @@ class AuditLogModel(Base):
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
     duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+
+class CompetitorChannelModel(Base):
+    """경쟁 채널 모니터링."""
+
+    __tablename__ = "competitor_channels"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    youtube_channel_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    subscriber_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    video_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    thumbnail_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    last_crawled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    videos: Mapped[list[CompetitorVideoModel]] = relationship(
+        back_populates="channel", lazy="selectin", cascade="all, delete-orphan"
+    )
+
+    def to_dict(self) -> dict:
+        """딕셔너리로 변환합니다."""
+        return {
+            "id": self.id,
+            "workspace_id": self.workspace_id,
+            "youtube_channel_id": self.youtube_channel_id,
+            "name": self.name,
+            "description": self.description,
+            "subscriber_count": self.subscriber_count,
+            "video_count": self.video_count,
+            "thumbnail_url": self.thumbnail_url,
+            "last_crawled_at": self.last_crawled_at.isoformat() if self.last_crawled_at else None,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class CompetitorVideoModel(Base):
+    """경쟁 채널 영상 데이터."""
+
+    __tablename__ = "competitor_videos"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    competitor_channel_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("competitor_channels.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    video_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    like_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    comment_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    published_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    tags_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    thumbnail_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    collected_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    channel: Mapped[CompetitorChannelModel] = relationship(back_populates="videos")
+
+    @property
+    def tags(self) -> list[str]:
+        return json.loads(self.tags_json) if self.tags_json else []
+
+    @tags.setter
+    def tags(self, value: list[str]) -> None:
+        self.tags_json = json.dumps(value, ensure_ascii=False)
+
+    def to_dict(self) -> dict:
+        """딕셔너리로 변환합니다."""
+        return {
+            "id": self.id,
+            "competitor_channel_id": self.competitor_channel_id,
+            "video_id": self.video_id,
+            "title": self.title,
+            "description": self.description,
+            "view_count": self.view_count,
+            "like_count": self.like_count,
+            "comment_count": self.comment_count,
+            "published_at": self.published_at.isoformat() if self.published_at else None,
+            "tags": self.tags,
+            "duration_seconds": self.duration_seconds,
+            "thumbnail_url": self.thumbnail_url,
+            "collected_at": self.collected_at.isoformat() if self.collected_at else None,
+        }
 
 
 class UsageEventModel(Base):

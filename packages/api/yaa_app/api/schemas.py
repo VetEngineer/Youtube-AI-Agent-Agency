@@ -252,3 +252,61 @@ class UsageSummaryResponse(BaseModel):
     by_agent: dict[str, float] = Field(default_factory=dict, description="에이전트별 비용")
     by_provider: dict[str, float] = Field(default_factory=dict, description="프로바이더별 비용")
     by_model: dict[str, float] = Field(default_factory=dict, description="모델별 비용")
+
+
+# ============================================
+# 경쟁 채널
+# ============================================
+
+
+class AddCompetitorRequest(BaseModel):
+    """경쟁 채널 등록 요청."""
+
+    youtube_channel_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="YouTube 채널 ID (UCxxxxxx 형식)",
+    )
+
+
+class CompetitorChannelInfo(BaseModel):
+    """경쟁 채널 정보."""
+
+    id: str
+    youtube_channel_id: str
+    name: str
+    description: str | None = None
+    subscriber_count: int
+    video_count: int
+    thumbnail_url: str | None = None
+    last_crawled_at: str | None = None
+    is_active: bool
+
+
+class CompetitorVideoInfo(BaseModel):
+    """경쟁 채널 영상 정보."""
+
+    video_id: str
+    title: str
+    view_count: int
+    like_count: int
+    comment_count: int
+    published_at: str
+    tags: list[str] = Field(default_factory=list)
+    duration_seconds: int | None = None
+    thumbnail_url: str | None = None
+
+
+class CompetitorDetailResponse(BaseModel):
+    """경쟁 채널 상세 + 최근 영상 목록."""
+
+    channel: CompetitorChannelInfo
+    recent_videos: list[CompetitorVideoInfo] = Field(default_factory=list)
+
+
+class CompetitorListResponse(BaseModel):
+    """경쟁 채널 목록 응답."""
+
+    competitors: list[CompetitorChannelInfo]
+    total: int

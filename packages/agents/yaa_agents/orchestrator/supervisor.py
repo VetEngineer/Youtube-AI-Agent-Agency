@@ -43,6 +43,7 @@ class AgentRegistry:
         self,
         brand_researcher: Any = None,
         script_writer: Any = None,
+        script_pipeline: Any = None,
         media_generator: Any = None,
         media_editor: Any = None,
         seo_optimizer: Any = None,
@@ -51,6 +52,7 @@ class AgentRegistry:
     ) -> None:
         self.brand_researcher = brand_researcher
         self.script_writer = script_writer
+        self.script_pipeline = script_pipeline  # 있으면 4단계 파이프라인 사용
         self.media_generator = media_generator
         self.media_editor = media_editor
         self.seo_optimizer = seo_optimizer
@@ -111,8 +113,8 @@ def _make_script_writing_node(registry: AgentRegistry):
     async def script_writing_node(state: PipelineState) -> dict[str, Any]:
         logger.info("[script_writing] 시작: topic=%s", state.get("topic", ""))
 
-        if registry.script_writer is None:
-            return append_error(state, "ScriptWriterAgent가 등록되지 않았습니다")
+        if registry.script_pipeline is None and registry.script_writer is None:
+            return append_error(state, "ScriptWriterAgent 또는 ScriptPipeline이 등록되지 않았습니다")
 
         try:
             brand_guide = state.get("brand_guide")
@@ -127,7 +129,10 @@ def _make_script_writing_node(registry: AgentRegistry):
                 topic=state.get("topic", ""),
             )
 
-            script = await registry.script_writer.generate(plan, brand_guide)
+            if registry.script_pipeline is not None:
+                script = await registry.script_pipeline.execute(plan, brand_guide)
+            else:
+                script = await registry.script_writer.generate(plan, brand_guide)
 
             logger.info("[script_writing] 완료: title=%s", script.title)
             return {

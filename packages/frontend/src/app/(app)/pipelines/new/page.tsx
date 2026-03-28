@@ -15,7 +15,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, HelpCircle } from 'lucide-react';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export default function PipelineNewPage() {
     const router = useRouter();
@@ -141,7 +147,19 @@ export default function PipelineNewPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="brand_name">Brand Name (Optional)</Label>
+                        <div className="flex items-center gap-1.5">
+                            <Label htmlFor="brand_name">Brand Name (Optional)</Label>
+                            <TooltipProvider delayDuration={200}>
+                                <Tooltip>
+                                    <TooltipTrigger type="button">
+                                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="max-w-[220px]">
+                                        원고와 콘텐츠에 반영할 브랜드 이름입니다. 예: "TechReview"를 입력하면 해당 브랜드 스타일로 스크립트가 작성됩니다.
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
                         <Input
                             id="brand_name"
                             placeholder="e.g. TechReview"
@@ -150,22 +168,39 @@ export default function PipelineNewPage() {
                             disabled={createPipeline.isPending}
                         />
                         <p className="text-xs text-muted-foreground">
-                            Brand identity for the content
+                            입력하지 않으면 채널 이름이 사용됩니다
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-start gap-2">
                         <input
                             type="checkbox"
                             id="dry_run"
                             checked={formData.dry_run}
                             onChange={(e) => setFormData({ ...formData, dry_run: e.target.checked })}
                             disabled={createPipeline.isPending}
-                            className="h-4 w-4 rounded border-gray-300"
+                            className="h-4 w-4 rounded border-gray-300 mt-0.5"
                         />
-                        <Label htmlFor="dry_run" className="text-sm font-normal">
-                            Dry Run (skip actual upload)
-                        </Label>
+                        <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                                <Label htmlFor="dry_run" className="text-sm font-normal">
+                                    Dry Run 모드
+                                </Label>
+                                <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                        <TooltipTrigger type="button">
+                                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" className="max-w-[240px]">
+                                            실제 AI 모델을 호출하지 않고 파이프라인 흐름을 시뮬레이션합니다. 비용 없이 설정이 올바른지 확인할 때 사용하세요.
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                실제 업로드 없이 파이프라인 전체 흐름을 테스트합니다
+                            </p>
+                        </div>
                     </div>
 
                     <div className="pt-4 flex justify-end gap-3">
