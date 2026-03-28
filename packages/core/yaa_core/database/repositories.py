@@ -605,7 +605,9 @@ class UsageRepository:
         workspace_id: str | None = None,
     ) -> list[UsageEventModel]:
         """필터링과 페이지네이션을 지원하는 목록 조회."""
-        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to, workspace_id)
+        conditions = self._build_filter_query(
+            run_id, agent, provider, date_from, date_to, workspace_id
+        )
         query = (
             select(UsageEventModel)
             .where(*conditions)
@@ -626,7 +628,9 @@ class UsageRepository:
         workspace_id: str | None = None,
     ) -> int:
         """필터링된 결과의 총 개수를 반환합니다."""
-        conditions = self._build_filter_query(run_id, agent, provider, date_from, date_to, workspace_id)
+        conditions = self._build_filter_query(
+            run_id, agent, provider, date_from, date_to, workspace_id
+        )
         query = select(func.count(UsageEventModel.id)).where(*conditions)
         result = await self._session.execute(query)
         return result.scalar_one()

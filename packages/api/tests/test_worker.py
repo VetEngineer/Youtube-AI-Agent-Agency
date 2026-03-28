@@ -207,7 +207,9 @@ class TestPipelineQueueIntegration:
         """Redis가 없으면 BackgroundTasks로 폴백하여 정상 응답."""
         with (
             patch("yaa_app.worker.enqueue.get_arq_pool", new_callable=AsyncMock) as mock_get_pool,
-            patch("yaa_app.api.routes.pipeline._execute_pipeline", new_callable=AsyncMock) as mock_execute,
+            patch(
+                "yaa_app.api.routes.pipeline._execute_pipeline", new_callable=AsyncMock
+            ) as mock_execute,
         ):
             mock_get_pool.return_value = None
 
@@ -247,8 +249,12 @@ class TestPipelineQueueIntegration:
     def test_enqueue_실패시_폴백(self, client):
         """enqueue 실패 시 BackgroundTasks로 폴백."""
         with (
-            patch("yaa_app.worker.enqueue.enqueue_pipeline", new_callable=AsyncMock) as mock_enqueue,
-            patch("yaa_app.api.routes.pipeline._execute_pipeline", new_callable=AsyncMock) as mock_execute,
+            patch(
+                "yaa_app.worker.enqueue.enqueue_pipeline", new_callable=AsyncMock
+            ) as mock_enqueue,
+            patch(
+                "yaa_app.api.routes.pipeline._execute_pipeline", new_callable=AsyncMock
+            ) as mock_execute,
         ):
             mock_enqueue.return_value = False
 

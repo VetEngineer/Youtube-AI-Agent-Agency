@@ -114,7 +114,9 @@ def _make_script_writing_node(registry: AgentRegistry):
         logger.info("[script_writing] 시작: topic=%s", state.get("topic", ""))
 
         if registry.script_pipeline is None and registry.script_writer is None:
-            return append_error(state, "ScriptWriterAgent 또는 ScriptPipeline이 등록되지 않았습니다")
+            return append_error(
+                state, "ScriptWriterAgent 또는 ScriptPipeline이 등록되지 않았습니다"
+            )
 
         try:
             brand_guide = state.get("brand_guide")

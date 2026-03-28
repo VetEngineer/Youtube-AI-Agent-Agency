@@ -147,7 +147,7 @@ async def _create_usage_event(session_factory, run_id: str) -> str:
 class TestStatusEndpointIsolation:
     """GET /status/{run_id} 워크스페이스 격리 테스트."""
 
-    async def test_워크스페이스A_토큰으로_B의_run_조회시_404(self, client_factory, _db_session_factory):
+    async def test_wsA키로_wsB_run_조회시_404(self, client_factory, _db_session_factory):
         app, session_factory = client_factory
 
         ws_a_id, key_a, _ = await _create_workspace_with_key(session_factory, "A")
@@ -159,7 +159,7 @@ class TestStatusEndpointIsolation:
 
         assert resp.status_code == 404
 
-    async def test_워크스페이스A_토큰으로_A의_run_조회시_200(self, client_factory, _db_session_factory):
+    async def test_wsA키로_wsA_run_조회시_200(self, client_factory, _db_session_factory):
         app, session_factory = client_factory
 
         ws_a_id, key_a, _ = await _create_workspace_with_key(session_factory, "A")
@@ -175,7 +175,7 @@ class TestStatusEndpointIsolation:
 class TestUsageEndpointIsolation:
     """GET /usage/events 워크스페이스 격리 테스트."""
 
-    async def test_워크스페이스B_토큰으로_events_조회시_B_이벤트만_반환(self, client_factory, _db_session_factory):
+    async def test_wsB키로_events_B만_반환(self, client_factory, _db_session_factory):
         app, session_factory = client_factory
 
         ws_a_id, key_a, _ = await _create_workspace_with_key(session_factory, "A")

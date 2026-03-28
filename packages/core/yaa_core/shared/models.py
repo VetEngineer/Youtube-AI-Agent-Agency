@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 # ============================================
 
 
-class AgentRole(str, Enum):
+class AgentRole(StrEnum):
     BRAND_RESEARCHER = "brand_researcher"
     SCRIPT_WRITER = "script_writer"
     MEDIA_GENERATOR = "media_generator"
@@ -26,7 +26,7 @@ class AgentRole(str, Enum):
     ANALYZER = "analyzer"
 
 
-class ContentStatus(str, Enum):
+class ContentStatus(StrEnum):
     DRAFT = "draft"
     REVIEW = "review"
     APPROVED = "approved"
@@ -34,19 +34,19 @@ class ContentStatus(str, Enum):
     FAILED = "failed"
 
 
-class Formality(str, Enum):
+class Formality(StrEnum):
     FORMAL = "formal"
     SEMI_FORMAL = "semi-formal"
     CASUAL = "casual"
 
 
-class Emotion(str, Enum):
+class Emotion(StrEnum):
     WARM = "warm"
     NEUTRAL = "neutral"
     ENERGETIC = "energetic"
 
 
-class HumorLevel(str, Enum):
+class HumorLevel(StrEnum):
     NONE = "none"
     LIGHT = "light"
     MODERATE = "moderate"

@@ -6,6 +6,8 @@ import logging
 import uuid
 from typing import Any
 
+from yaa_app.cli import _build_agent_registry
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,8 +65,6 @@ async def execute_pipeline_task(
     from yaa_core.database.repositories import RunRepository
     from yaa_core.shared.config import AppSettings
     from yaa_core.shared.llm_clients import UsageCollector
-
-    from yaa_app.cli import _build_agent_registry
 
     logger.info("파이프라인 작업 시작: run_id=%s, channel=%s", run_id, channel_id)
 

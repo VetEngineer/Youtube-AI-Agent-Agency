@@ -157,7 +157,9 @@ async def rag_index_channel(
     try:
         from yaa_agents.brand_researcher.rag import BrandIndexer, RAGConfig
     except ImportError:
-        raise HTTPException(status_code=503, detail="chromadb가 설치되지 않아 RAG를 사용할 수 없습니다")
+        raise HTTPException(
+            status_code=503, detail="chromadb가 설치되지 않아 RAG를 사용할 수 없습니다"
+        )
 
     indexer = BrandIndexer(RAGConfig())
     n = indexer.index_channel(channel_id, channel_path)
