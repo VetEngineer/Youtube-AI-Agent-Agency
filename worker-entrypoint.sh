@@ -2,4 +2,4 @@
 set -e
 
 echo "Starting Arq worker..."
-exec uv run arq yaa_app.worker.tasks.WorkerSettings
+exec python -m arq yaa_app.worker.tasks.WorkerConfig
