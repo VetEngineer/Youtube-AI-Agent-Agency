@@ -18,7 +18,7 @@ from .models import BrandGuide, ChannelSettings
 
 PLAN_QUOTAS: dict[str, dict[str, Any]] = {
     "free": {
-        "monthly_pipelines": 5,
+        "monthly_pipelines": 3,
         "max_channels": 1,
         "media_generation": False,
         "youtube_upload": False,
@@ -26,7 +26,7 @@ PLAN_QUOTAS: dict[str, dict[str, Any]] = {
         "api_access": False,
     },
     "pro": {
-        "monthly_pipelines": 50,
+        "monthly_pipelines": 20,
         "max_channels": 5,
         "media_generation": True,
         "youtube_upload": True,
@@ -34,7 +34,7 @@ PLAN_QUOTAS: dict[str, dict[str, Any]] = {
         "api_access": True,
     },
     "enterprise": {
-        "monthly_pipelines": -1,  # unlimited
+        "monthly_pipelines": 100,
         "max_channels": -1,
         "media_generation": True,
         "youtube_upload": True,

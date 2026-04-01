@@ -32,7 +32,7 @@ const plans = [
         period: '/월',
         description: '본격적인 YouTube 운영을 위한 프로 플랜',
         features: [
-            '월 30회 파이프라인 실행',
+            '월 20회 파이프라인 실행',
             '채널 5개',
             '고급 AI 모델 (Claude + GPT-4o)',
             '1080p 영상 출력',
@@ -54,7 +54,7 @@ const plans = [
         period: '/월',
         description: '팀과 에이전시를 위한 엔터프라이즈 플랜',
         features: [
-            '무제한 파이프라인 실행',
+            '월 100회 파이프라인 실행',
             '무제한 채널',
             '최고급 AI 모델',
             '4K 영상 출력',
@@ -97,13 +97,13 @@ export default function PricingPage() {
                             key={plan.name}
                             className={
                                 plan.highlighted
-                                    ? 'relative border-primary shadow-lg shadow-primary/10'
-                                    : ''
+                                    ? 'relative ring-2 ring-primary/40 shadow-lg shadow-primary/10 glass-card'
+                                    : 'glass-card glass-card-hover'
                             }
                         >
                             {plan.highlighted && (
                                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                    <Badge>인기</Badge>
+                                    <Badge className="glow-red">인기</Badge>
                                 </div>
                             )}
                             <CardHeader>
@@ -162,13 +162,21 @@ export default function PricingPage() {
                                 </ul>
                             </CardContent>
                             <CardFooter>
-                                <Button
-                                    asChild
-                                    variant={plan.variant}
-                                    className="w-full"
-                                >
-                                    <Link href="/login">{plan.cta}</Link>
-                                </Button>
+                                {plan.name === 'Enterprise' ? (
+                                    <Button variant={plan.variant} className="w-full" asChild>
+                                        <a href="http://pf.kakao.com/_GxmxcTG/chat" target="_blank" rel="noopener noreferrer">
+                                            카카오로 문의하기
+                                        </a>
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        asChild
+                                        variant={plan.variant}
+                                        className={`w-full${plan.highlighted ? ' glow-red' : ''}`}
+                                    >
+                                        <Link href="/login">{plan.cta}</Link>
+                                    </Button>
+                                )}
                             </CardFooter>
                         </Card>
                     ))}
@@ -191,7 +199,7 @@ export default function PricingPage() {
                             </thead>
                             <tbody>
                                 {[
-                                    ['파이프라인 실행', '3회/월', '30회/월', '무제한'],
+                                    ['파이프라인 실행', '3회/월', '20회/월', '100회/월'],
                                     ['채널 수', '1개', '5개', '무제한'],
                                     ['AI 모델', 'GPT-4o mini', 'Claude + GPT-4o', '최고급'],
                                     ['영상 해상도', '720p', '1080p', '4K'],
