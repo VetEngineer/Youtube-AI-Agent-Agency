@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -132,9 +133,31 @@ export default function LoginPage() {
 
                 <p className="text-center text-xs text-muted-foreground">
                     로그인 시{' '}
-                    <span className="underline">이용약관</span> 및{' '}
-                    <span className="underline">개인정보처리방침</span>에 동의합니다.
+                    <Link href="/terms" className="underline hover:text-foreground transition-colors">이용약관</Link> 및{' '}
+                    <Link href="/privacy" className="underline hover:text-foreground transition-colors">개인정보처리방침</Link>에 동의합니다.
                 </p>
+
+                <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-xs text-foreground/75 space-y-1.5">
+                    <p className="font-semibold text-foreground/90">사업자 정보</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                        <span>상호: 하캄솔루션</span>
+                        <span>대표자: 강은구</span>
+                        <span>사업자등록번호: 435-17-01222</span>
+                        <span>통신판매업: 2020-대전유성-1677</span>
+                    </div>
+                    <p>주소: 대전광역시 유성구 은구비남로33번길 13-8, 3층 3043호</p>
+                    <p>
+                        문의:{' '}
+                        <a
+                            href="https://pf.kakao.com/_GxmxcTG/chat"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline hover:text-foreground transition-colors"
+                        >
+                            카카오톡 채널
+                        </a>
+                    </p>
+                </div>
             </div>
         </div>
     );

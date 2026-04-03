@@ -48,38 +48,38 @@
 }
 
 .dark {
-  --background: 240 10% 4%;
+  --background: 222 47% 4%;
   --foreground: 0 0% 98%;
-  --card: 240 10% 10%;
+  --card: 222 47% 8%;
   --card-foreground: 0 0% 98%;
-  --popover: 240 10% 10%;
+  --popover: 222 47% 8%;
   --popover-foreground: 0 0% 98%;
-  --primary: 250 95% 65%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 340 75% 60%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 10% 15%;
-  --muted-foreground: 240 5% 65%;
-  --accent: 240 10% 15%;
+  --primary: 0 90% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 91% 55%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 222 30% 13%;
+  --muted-foreground: 217 15% 60%;
+  --accent: 222 30% 13%;
   --accent-foreground: 0 0% 98%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
-  --border: 240 10% 20%;
-  --input: 240 10% 20%;
-  --ring: 250 95% 65%;
-  --chart-1: 220 70% 50%;
+  --border: 217 30% 18%;
+  --input: 217 30% 18%;
+  --ring: 0 90% 60%;
+  --chart-1: 217 91% 55%;
   --chart-2: 160 60% 45%;
   --chart-3: 30 80% 55%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
+  --chart-4: 0 90% 60%;
+  --chart-5: 280 65% 60%;
+  --sidebar: hsl(222 47% 6%);
+  --sidebar-foreground: hsl(217 20% 85%);
+  --sidebar-primary: hsl(0 90% 60%);
   --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --sidebar-accent: hsl(222 30% 11%);
+  --sidebar-accent-foreground: hsl(217 20% 85%);
+  --sidebar-border: hsl(217 30% 12%);
+  --sidebar-ring: hsl(0 90% 60%);
 }
 
 @theme inline {
@@ -129,4 +129,52 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+@layer utilities {
+  .glass-card {
+    background: hsl(0 0% 100% / 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid hsl(0 0% 0% / 0.1);
+  }
+  .dark .glass-card {
+    background: hsl(222 47% 8% / 0.8);
+    border: 1px solid hsl(217 30% 25% / 0.6);
+  }
+  .glass-card-hover {
+    transition: border-color 200ms, box-shadow 200ms, transform 200ms;
+  }
+  .glass-card-hover:hover {
+    border-color: hsl(0 90% 60% / 0.3);
+    box-shadow: 0 0 24px hsl(0 90% 60% / 0.08), 0 8px 24px hsl(222 47% 4% / 0.4);
+  }
+  .glow-red {
+    box-shadow: 0 0 20px hsl(0 90% 60% / 0.3), 0 0 60px hsl(0 90% 60% / 0.1);
+  }
+  .glow-blue {
+    box-shadow: 0 0 20px hsl(217 91% 55% / 0.3), 0 0 60px hsl(217 91% 55% / 0.1);
+  }
+  .text-gradient-brand {
+    background: linear-gradient(135deg, hsl(0 90% 60%), hsl(217 91% 65%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .font-tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+}
+
+/* 활성 사이드바 메뉴 강조 */
+[data-sidebar="menu-button"][data-active="true"] {
+  background: hsl(0 90% 60% / 0.15);
+  color: hsl(0 90% 65%);
+  border-left: 2px solid hsl(0 90% 60%);
+}
+
+/* 버튼 누름 효과 */
+button:active:not(:disabled) {
+  transform: scale(0.97);
 }

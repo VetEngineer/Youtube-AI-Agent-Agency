@@ -29,10 +29,13 @@ export default function MarketingLayout({
                         >
                             요금제
                         </Link>
-                        <Button asChild variant="outline" size="sm">
-                            <Link href="/login">로그인</Link>
-                        </Button>
-                        <Button asChild size="sm">
+                        <Link
+                            href="/login"
+                            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            로그인
+                        </Link>
+                        <Button asChild size="sm" className="glow-red">
                             <Link href="/login">무료로 시작하기</Link>
                         </Button>
                     </nav>
@@ -77,7 +80,7 @@ export default function MarketingLayout({
                             </ul>
                         </div>
                         <div>
-                            <h4 className="mb-3 text-sm font-semibold">지원</h4>
+                            <h4 className="mb-3 text-sm font-semibold">지원 / 법률</h4>
                             <ul className="space-y-2 text-sm text-muted-foreground">
                                 <li>
                                     <a
@@ -89,13 +92,23 @@ export default function MarketingLayout({
                                         GitHub
                                     </a>
                                 </li>
+                                <li>
+                                    <Link href="/terms" className="hover:text-foreground transition-colors">
+                                        이용약관
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link href="/privacy" className="hover:text-foreground transition-colors">
+                                        개인정보처리방침
+                                    </Link>
+                                </li>
                             </ul>
                         </div>
                     </div>
                     <div className="mt-8 border-t border-border/50 pt-6">
-                        <div className="mb-4 rounded-lg bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
-                            <p className="mb-1 font-medium text-foreground/70">사업자 정보</p>
-                            <div className="grid gap-x-6 gap-y-0.5 sm:grid-cols-2">
+                        <div className="mb-4 rounded-lg border border-border bg-muted/60 px-4 py-4 text-xs text-foreground/80">
+                            <p className="mb-2 text-sm font-semibold text-foreground">사업자 정보</p>
+                            <div className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
                                 <span>상호: 하캄솔루션</span>
                                 <span>대표자: 강은구</span>
                                 <span>사업자등록번호: 435-17-01222</span>
@@ -104,7 +117,7 @@ export default function MarketingLayout({
                                 <span>
                                     문의:{' '}
                                     <a
-                                        href="http://pf.kakao.com/_GxmxcTG/chat"
+                                        href="https://pf.kakao.com/_GxmxcTG/chat"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="underline hover:text-foreground transition-colors"
