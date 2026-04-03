@@ -94,47 +94,54 @@ export default function Home() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
+        {/* Total Runs */}
+        <div className="group relative rounded-xl border border-border bg-gradient-to-br from-blue-500/5 to-transparent bg-card text-card-foreground shadow transition-all hover:-translate-y-0.5 hover:border-blue-500/30 hover:shadow-blue-500/10 hover:shadow-lg">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
             <h3 className="tracking-tight text-sm font-medium">Total Runs</h3>
-            <Play className="h-4 w-4 text-muted-foreground" />
+            <Play className="h-4 w-4 text-blue-400" />
           </div>
           <div className="p-6 pt-0">
-            <div className="text-2xl font-bold">{stats.total_runs}</div>
-            <p className="text-xs text-muted-foreground">All pipeline executions</p>
+            <div className="font-tabular text-3xl font-bold">{stats.total_runs}</div>
+            <p className="text-xs text-muted-foreground">전체 파이프라인 실행</p>
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
+        {/* Active */}
+        <div className="group relative rounded-xl border border-border bg-gradient-to-br from-emerald-500/5 to-transparent bg-card text-card-foreground shadow transition-all hover:-translate-y-0.5 hover:border-emerald-500/30 hover:shadow-emerald-500/10 hover:shadow-lg">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
             <h3 className="tracking-tight text-sm font-medium">Active</h3>
-            <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+            </span>
           </div>
           <div className="p-6 pt-0">
-            <div className="text-2xl font-bold">{stats.active_runs}</div>
-            <p className="text-xs text-muted-foreground">Running now</p>
+            <div className="font-tabular text-3xl font-bold">{stats.active_runs}</div>
+            <p className="text-xs text-muted-foreground">현재 실행 중</p>
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
+        {/* Successful */}
+        <div className="group relative rounded-xl border border-border bg-gradient-to-br from-green-500/5 to-transparent bg-card text-card-foreground shadow transition-all hover:-translate-y-0.5 hover:border-green-500/30 hover:shadow-green-500/10 hover:shadow-lg">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
             <h3 className="tracking-tight text-sm font-medium">Successful</h3>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-green-400" />
           </div>
           <div className="p-6 pt-0">
-            <div className="text-2xl font-bold">{stats.success_runs}</div>
-            <p className="text-xs text-muted-foreground">Completed successfully</p>
+            <div className="font-tabular text-3xl font-bold">{stats.success_runs}</div>
+            <p className="text-xs text-muted-foreground">완료 성공</p>
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
+        {/* Failed */}
+        <div className="group relative rounded-xl border border-border bg-gradient-to-br from-red-500/5 to-transparent bg-card text-card-foreground shadow transition-all hover:-translate-y-0.5 hover:border-red-500/30 hover:shadow-red-500/10 hover:shadow-lg">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
             <h3 className="tracking-tight text-sm font-medium">Failed</h3>
-            <XCircle className="h-4 w-4 text-red-500" />
+            <XCircle className="h-4 w-4 text-red-400" />
           </div>
           <div className="p-6 pt-0">
-            <div className="text-2xl font-bold">{stats.failed_runs}</div>
-            <p className="text-xs text-muted-foreground">Needs attention</p>
+            <div className="font-tabular text-3xl font-bold">{stats.failed_runs}</div>
+            <p className="text-xs text-muted-foreground">주의 필요</p>
           </div>
         </div>
       </div>
@@ -167,10 +174,16 @@ export default function Home() {
                   </Link>
                 ))
               ) : (
-                <div className="flex flex-col items-center gap-4 py-8 text-center">
+                <div className="flex flex-col items-center gap-4 py-10 text-center">
+                  <div className="relative mb-2">
+                    <div className="absolute inset-0 rounded-full bg-primary/10 blur-xl scale-150" />
+                    <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
+                      <Rocket className="h-7 w-7 text-primary" />
+                    </div>
+                  </div>
                   <p className="text-sm text-muted-foreground">아직 실행된 파이프라인이 없습니다.</p>
                   <div className="flex flex-wrap gap-2 justify-center">
-                    <Button size="sm" asChild>
+                    <Button size="sm" className="glow-red" asChild>
                       <Link href="/pipelines/new">
                         <Plus className="mr-1 h-3 w-3" /> 첫 파이프라인 만들기
                       </Link>

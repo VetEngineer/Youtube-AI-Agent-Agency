@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { useCreateChannel } from '@/hooks/use-channels';
 import { ApiError } from '@/lib/api';
 
@@ -118,9 +118,22 @@ function CreateChannelStep({
     const [description, setDescription] = useState('');
     const [targetAudience, setTargetAudience] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
+    const [created, setCreated] = useState(false);
     const createChannel = useCreateChannel();
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+        };
+    }, []);
 
     const isValid = channelName.trim().length > 0;
+
+    const buildDescription = () => {
+        const parts = [description.trim(), targetAudience.trim() ? `타겟: ${targetAudience.trim()}` : ''].filter(Boolean);
+        return parts.join(' / ') || undefined;
+    };
 
     const handleCreate = async () => {
         setErrorMsg('');
@@ -129,8 +142,10 @@ function CreateChannelStep({
                 channel_id: slugify(channelName),
                 name: channelName.trim(),
                 category: 'general',
+                description: buildDescription(),
             });
-            onNext();
+            setCreated(true);
+            timerRef.current = setTimeout(() => onNext(), 800);
         } catch (err) {
             if (err instanceof ApiError && err.status === 409) {
                 setErrorMsg('같은 이름의 채널이 이미 존재합니다. 다른 이름을 사용해 주세요.');
@@ -176,6 +191,12 @@ function CreateChannelStep({
                         onChange={(e) => setTargetAudience(e.target.value)}
                     />
                 </div>
+                {created && (
+                    <div className="flex items-center gap-2 text-sm text-green-400">
+                        <CheckCircle className="h-4 w-4 shrink-0" />
+                        채널이 생성됐습니다! 다음 단계로 이동 중...
+                    </div>
+                )}
                 {errorMsg && (
                     <div className="flex items-center gap-2 text-sm text-red-500">
                         <AlertCircle className="h-4 w-4 shrink-0" />
@@ -201,7 +222,8 @@ function TryPipelineStep({ onBack }: { onBack: () => void }) {
     const [topic, setTopic] = useState('');
 
     const handleFinish = () => {
-        router.push('/');
+        localStorage.removeItem('onboarding_step');
+        router.push('/pipelines');
     };
 
     const handleTryDryRun = () => {
@@ -259,7 +281,17 @@ function TryPipelineStep({ onBack }: { onBack: () => void }) {
 }
 
 export default function OnboardingPage() {
-    const [currentStep, setCurrentStep] = useState(1);
+    const [currentStep, setCurrentStep] = useState<number>(1);
+
+    useEffect(() => {
+        const saved = parseInt(localStorage.getItem('onboarding_step') ?? '1', 10);
+        const clamped = Math.min(Math.max(saved, 1), TOTAL_STEPS);
+        setCurrentStep(clamped);
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('onboarding_step', String(currentStep));
+    }, [currentStep]);
 
     const goNext = () => setCurrentStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
     const goBack = () => setCurrentStep((prev) => Math.max(prev - 1, 1));

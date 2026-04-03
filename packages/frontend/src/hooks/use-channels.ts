@@ -17,6 +17,7 @@ export interface CreateChannelRequest {
     channel_id: string;
     name: string;
     category?: string;
+    description?: string;
 }
 
 export interface UpdateChannelRequest {

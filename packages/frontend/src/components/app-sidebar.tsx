@@ -81,6 +81,17 @@ export function AppSidebar() {
   return (
     <TooltipProvider delayDuration={300}>
       <Sidebar>
+        {/* 브랜딩 헤더 */}
+        <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4 shrink-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary shadow-[0_0_12px_hsl(0_90%_60%/0.4)]">
+            <Youtube className="h-4 w-4 text-white" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-bold tracking-tight truncate">YAA Studio</span>
+            <span className="text-[10px] text-muted-foreground truncate">AI Agent Agency</span>
+          </div>
+        </div>
+
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupLabel>Youtube Agent</SidebarGroupLabel>

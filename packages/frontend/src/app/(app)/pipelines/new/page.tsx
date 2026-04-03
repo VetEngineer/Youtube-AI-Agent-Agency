@@ -15,7 +15,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { AlertCircle, ArrowLeft, Loader2, HelpCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, HelpCircle, Plus } from 'lucide-react';
 import {
     Tooltip,
     TooltipContent,
@@ -35,17 +35,18 @@ export default function PipelineNewPage() {
         dry_run: false,
     });
     const [error, setError] = useState<string | null>(null);
+    const [topicError, setTopicError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
 
         if (!formData.topic.trim()) {
-            setError('Topic is required');
+            setError('주제를 입력해 주세요.');
             return;
         }
         if (!formData.channel_id) {
-            setError('Please select a channel');
+            setError('채널을 선택해 주세요.');
             return;
         }
 
@@ -61,7 +62,7 @@ export default function PipelineNewPage() {
             if (err instanceof Error) {
                 setError(err.message);
             } else {
-                setError('Failed to create pipeline. Please try again.');
+                setError('파이프라인 생성에 실패했습니다. 다시 시도해 주세요.');
             }
         }
     };
@@ -97,14 +98,25 @@ export default function PipelineNewPage() {
                         <Label htmlFor="topic">Topic / Keyword *</Label>
                         <Input
                             id="topic"
-                            placeholder="e.g. Top 10 AI Tools in 2026"
+                            placeholder="예: 2026년 AI 트렌드 전망"
                             value={formData.topic}
-                            onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+                            onChange={(e) => {
+                                setFormData({ ...formData, topic: e.target.value });
+                                if (topicError && e.target.value.trim()) setTopicError(null);
+                            }}
+                            onBlur={() => {
+                                if (!formData.topic.trim()) setTopicError('주제를 입력해 주세요.');
+                            }}
                             disabled={createPipeline.isPending}
+                            className={topicError ? 'border-red-500/50' : ''}
                         />
-                        <p className="text-xs text-muted-foreground">
-                            The main subject of your video content
-                        </p>
+                        {topicError ? (
+                            <p className="text-xs text-red-400">{topicError}</p>
+                        ) : (
+                            <p className="text-xs text-muted-foreground">
+                                AI가 이 주제를 기반으로 영상 콘텐츠를 생성합니다
+                            </p>
+                        )}
                     </div>
 
                     <div className="space-y-2">
@@ -120,8 +132,13 @@ export default function PipelineNewPage() {
                                 <span className="text-sm text-red-400">Failed to load channels</span>
                             </div>
                         ) : channels.length === 0 ? (
-                            <div className="p-3 border rounded-md text-sm text-muted-foreground">
-                                No channels available. Please add a channel first.
+                            <div className="rounded-lg border border-border bg-muted/30 p-4 text-center">
+                                <p className="text-sm text-muted-foreground mb-2">등록된 채널이 없습니다.</p>
+                                <Button size="sm" variant="outline" asChild>
+                                    <Link href="/channels">
+                                        <Plus className="mr-1 h-3 w-3" /> 채널 등록하기
+                                    </Link>
+                                </Button>
                             </div>
                         ) : (
                             <Select
@@ -209,7 +226,7 @@ export default function PipelineNewPage() {
                         </Button>
                         <Button
                             type="submit"
-                            disabled={createPipeline.isPending || !formData.topic || !formData.channel_id}
+                            disabled={createPipeline.isPending || channelsLoading || !formData.topic || !formData.channel_id}
                         >
                             {createPipeline.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {createPipeline.isPending ? 'Creating...' : 'Start Pipeline'}

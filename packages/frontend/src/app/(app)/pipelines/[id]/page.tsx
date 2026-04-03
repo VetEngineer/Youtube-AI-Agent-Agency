@@ -57,9 +57,12 @@ function getStatusBadge(status: string) {
     }
 }
 
+import { useState } from 'react';
+
 export default function PipelineDetailPage() {
     const params = useParams();
     const id = params?.id as string;
+    const [scriptExpanded, setScriptExpanded] = useState(false);
 
     const { data: pipeline, isLoading, error } = usePipeline(id);
     const cancelMutation = useCancelPipeline();
@@ -242,12 +245,24 @@ export default function PipelineDetailPage() {
                                     </a>
                                 )}
                                 {pipeline.result.script && (
-                                    <div className="p-3 border rounded-md max-h-40 overflow-y-auto text-sm">
+                                    <div className="p-3 border rounded-md text-sm">
                                         <p className="font-medium mb-2">Script Preview:</p>
-                                        <p className="text-muted-foreground whitespace-pre-wrap">
-                                            {pipeline.result.script.slice(0, 200)}
-                                            {pipeline.result.script.length > 200 && '...'}
+                                        <p className={`text-muted-foreground whitespace-pre-wrap ${scriptExpanded ? '' : 'max-h-32 overflow-hidden'}`}>
+                                            {scriptExpanded
+                                                ? pipeline.result.script
+                                                : pipeline.result.script.slice(0, 200) + (pipeline.result.script.length > 200 ? '...' : '')
+                                            }
                                         </p>
+                                        {pipeline.result.script.length > 200 && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="mt-1 h-6 text-xs px-2"
+                                                onClick={() => setScriptExpanded(!scriptExpanded)}
+                                            >
+                                                {scriptExpanded ? '접기' : '전체 보기'}
+                                            </Button>
+                                        )}
                                     </div>
                                 )}
                                 {pipeline.result.images && pipeline.result.images.length > 0 && (

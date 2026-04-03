@@ -88,10 +88,15 @@ export default function PipelinesPage() {
 
             {!isLoading && !error && runs.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <Inbox className="h-12 w-12 text-muted-foreground mb-4" />
+                    <div className="relative mb-4">
+                        <div className="absolute inset-0 rounded-full bg-primary/10 blur-xl scale-150" />
+                        <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
+                            <Inbox className="h-7 w-7 text-primary" />
+                        </div>
+                    </div>
                     <h3 className="text-lg font-semibold mb-1">파이프라인이 없습니다</h3>
                     <p className="text-sm text-muted-foreground mb-4">첫 번째 파이프라인을 실행해 보세요.</p>
-                    <Button asChild>
+                    <Button className="glow-red" asChild>
                         <Link href="/pipelines/new">
                             <Plus className="mr-2 h-4 w-4" /> New Pipeline
                         </Link>
@@ -100,37 +105,26 @@ export default function PipelinesPage() {
             )}
 
             {!isLoading && !error && runs.length > 0 && (
-                <div className="rounded-xl border bg-card overflow-hidden">
-                    <table className="w-full text-sm">
-                        <thead className="border-b bg-muted/30">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Topic</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Channel</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Created</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Duration</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {runs.map((run) => (
-                                <tr
-                                    key={run.run_id}
-                                    className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
-                                    onClick={() => router.push(`/pipelines/${run.run_id}`)}
-                                >
-                                    <td className="px-4 py-3 font-medium">{run.topic}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">{run.channel_id}</td>
-                                    <td className="px-4 py-3">{getStatusBadge(run.status)}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {new Date(run.created_at).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {formatDuration(run.created_at, run.completed_at)}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {runs.map((run) => (
+                        <div
+                            key={run.run_id}
+                            className="group rounded-xl border border-border bg-card p-4 cursor-pointer transition-all hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5"
+                            onClick={() => router.push(`/pipelines/${run.run_id}`)}
+                        >
+                            <div className="flex items-start justify-between gap-2 mb-3">
+                                <p className="text-sm font-medium leading-snug line-clamp-2 flex-1">{run.topic}</p>
+                                {getStatusBadge(run.status)}
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span className="truncate max-w-[120px]">{run.channel_id}</span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span>{formatDuration(run.created_at, run.completed_at)}</span>
+                                    <span>{new Date(run.created_at).toLocaleDateString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             )}
         </div>
