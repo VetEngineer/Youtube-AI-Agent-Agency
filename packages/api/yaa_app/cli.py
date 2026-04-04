@@ -61,9 +61,9 @@ def _build_agent_registry(
     sw_callbacks = [collector.create_callback("script_writer", "anthropic")] if collector else None
     seo_callbacks = [collector.create_callback("seo_optimizer", "openai")] if collector else None
 
-    brand_researcher_llm = create_openai_client(callbacks=br_callbacks)
+    brand_researcher_llm = create_openai_client(model="gpt-4o-mini", callbacks=br_callbacks)
     anthropic_llm = create_anthropic_client(callbacks=sw_callbacks)
-    seo_llm = create_openai_client(callbacks=seo_callbacks)
+    seo_llm = create_openai_client(model="gpt-4o-mini", callbacks=seo_callbacks)
 
     brand_researcher = BrandResearcherAgent(
         llm=brand_researcher_llm,
