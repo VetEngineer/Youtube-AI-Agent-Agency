@@ -45,6 +45,7 @@ async def enqueue_pipeline(
     topic: str,
     brand_name: str,
     dry_run: bool,
+    workspace_id: str | None = None,
 ) -> bool:
     """파이프라인 실행을 큐에 등록합니다.
 
@@ -67,6 +68,7 @@ async def enqueue_pipeline(
             topic=topic,
             brand_name=brand_name,
             dry_run=dry_run,
+            workspace_id=workspace_id,
             _queue_name=settings.worker_queue_name,
         )
         logger.info("파이프라인 큐 등록: run_id=%s", run_id)

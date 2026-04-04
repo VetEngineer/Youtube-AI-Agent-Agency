@@ -816,6 +816,10 @@ function IntegrationsSection() {
     const [showInput, setShowInput] = useState(false);
     const [saved, setSaved] = useState(false);
 
+    const [elKeyInput, setElKeyInput] = useState('');
+    const [showElInput, setShowElInput] = useState(false);
+    const [elSaved, setElSaved] = useState(false);
+
     const handleSave = async () => {
         if (!apiKeyInput.trim()) return;
         try {
@@ -837,6 +841,27 @@ function IntegrationsSection() {
         }
     };
 
+    const handleElSave = async () => {
+        if (!elKeyInput.trim()) return;
+        try {
+            await updateIntegrations.mutateAsync({ elevenlabs_api_key: elKeyInput.trim() });
+            setElKeyInput('');
+            setShowElInput(false);
+            setElSaved(true);
+            setTimeout(() => setElSaved(false), 2500);
+        } catch {
+            // ignore
+        }
+    };
+
+    const handleElRemove = async () => {
+        try {
+            await updateIntegrations.mutateAsync({ elevenlabs_api_key: '' });
+        } catch {
+            // ignore
+        }
+    };
+
     if (error) {
         return (
             <div className="flex items-center gap-2 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
@@ -853,6 +878,103 @@ function IntegrationsSection() {
                 <p className="text-sm text-muted-foreground">
                     외부 서비스 연동에 필요한 API 키를 관리합니다.
                 </p>
+            </div>
+
+            {/* ElevenLabs TTS API */}
+            <div className="rounded-lg border p-4 space-y-4">
+                <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-purple-600/10 flex items-center justify-center">
+                        <Key className="h-5 w-5 text-purple-500" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium">ElevenLabs API</p>
+                        <p className="text-xs text-muted-foreground">
+                            음성 생성(TTS)에 사용됩니다. elevenlabs.io에서 발급하세요.
+                        </p>
+                    </div>
+                    <div className="ml-auto">
+                        {isLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : data?.elevenlabs_api_key_set ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-green-500 bg-green-500/10 border border-green-500/20 rounded-full px-2 py-0.5">
+                                <Check className="h-3 w-3" /> 설정됨
+                            </span>
+                        ) : (
+                            <span className="text-xs text-muted-foreground">미설정 (서버 기본값 사용)</span>
+                        )}
+                    </div>
+                </div>
+
+                {data?.elevenlabs_api_key_set && data.elevenlabs_api_key_masked && (
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                            <Key className="h-4 w-4 text-muted-foreground" />
+                            <code className="text-sm">{data.elevenlabs_api_key_masked}</code>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={handleElRemove}
+                            disabled={updateIntegrations.isPending}
+                        >
+                            {updateIntegrations.isPending ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                                <Trash2 className="h-3 w-3" />
+                            )}
+                        </Button>
+                    </div>
+                )}
+
+                {!showElInput && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowElInput(true)}
+                    >
+                        <Plus className="h-3 w-3 mr-1" />
+                        {data?.elevenlabs_api_key_set ? '키 변경' : '키 입력'}
+                    </Button>
+                )}
+
+                {showElInput && (
+                    <div className="space-y-2">
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <Input
+                                    type="password"
+                                    placeholder="sk_..."
+                                    value={elKeyInput}
+                                    onChange={(e) => setElKeyInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleElSave()}
+                                    className="pr-9 font-mono text-sm"
+                                />
+                            </div>
+                            <Button
+                                onClick={handleElSave}
+                                disabled={!elKeyInput.trim() || updateIntegrations.isPending}
+                            >
+                                {updateIntegrations.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : elSaved ? (
+                                    <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                    '저장'
+                                )}
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                onClick={() => { setShowElInput(false); setElKeyInput(''); }}
+                            >
+                                취소
+                            </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            elevenlabs.io → Profile → API Keys에서 발급한 키를 입력하세요. 입력하지 않으면 서버 기본 키가 사용됩니다.
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* YouTube Data API */}

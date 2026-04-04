@@ -42,6 +42,8 @@ export interface AddCompetitorRequest {
 export interface IntegrationsInfo {
     youtube_api_key_set: boolean;
     youtube_api_key_masked: string | null;
+    elevenlabs_api_key_set: boolean;
+    elevenlabs_api_key_masked: string | null;
 }
 
 export function useCompetitors() {
@@ -109,7 +111,7 @@ export function useUpdateIntegrations() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (data: { youtube_api_key: string }) =>
+        mutationFn: (data: { youtube_api_key?: string; elevenlabs_api_key?: string }) =>
             api.patch<IntegrationsInfo>('/settings/integrations', data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['settings', 'integrations'] });

@@ -164,6 +164,7 @@ async def run_pipeline(
             topic=request.topic,
             brand_name=request.brand_name,
             dry_run=request.dry_run,
+            workspace_id=auth.workspace_id,
         )
     except ImportError:
         logger.debug("arq 패키지 미설치 — BackgroundTasks 폴백")
@@ -403,6 +404,7 @@ async def retry_pipeline_run(
             topic=original_run.topic,
             brand_name=original_run.brand_name,
             dry_run=original_run.dry_run,
+            workspace_id=original_run.workspace_id,
         )
     except ImportError:
         logger.debug("arq 패키지 미설치 — BackgroundTasks 폴백")

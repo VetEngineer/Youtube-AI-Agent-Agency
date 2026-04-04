@@ -46,6 +46,7 @@ async def execute_pipeline_task(
     topic: str,
     brand_name: str,
     dry_run: bool,
+    workspace_id: str | None = None,
 ) -> dict[str, Any]:
     """큐에서 파이프라인을 실행하는 Arq 작업.
 
@@ -56,6 +57,7 @@ async def execute_pipeline_task(
         topic: 콘텐츠 주제
         brand_name: 브랜드명
         dry_run: 실제 업로드 건너뜀 여부
+        workspace_id: 워크스페이스 ID (사용자 API 키 로드에 사용)
 
     Returns:
         실행 결과 딕셔너리
@@ -96,7 +98,22 @@ async def execute_pipeline_task(
 
             channel_registry = ChannelRegistry(settings.channels_dir)
 
-        agent_registry = _build_agent_registry(settings, collector=collector)
+        # 워크스페이스별 ElevenLabs API 키 로드
+        workspace_elevenlabs_key: str | None = None
+        if workspace_id:
+            from yaa_core.database.repositories import WorkspaceRepository
+
+            async with session_factory() as session:
+                ws_repo = WorkspaceRepository(session)
+                workspace = await ws_repo.get(workspace_id)
+                if workspace and workspace.elevenlabs_api_key:
+                    workspace_elevenlabs_key = workspace.elevenlabs_api_key
+
+        agent_registry = _build_agent_registry(
+            settings,
+            collector=collector,
+            elevenlabs_api_key=workspace_elevenlabs_key,
+        )
         pipeline = compile_pipeline(agent_registry)
         initial_state = create_initial_state(
             channel_id=channel_id,

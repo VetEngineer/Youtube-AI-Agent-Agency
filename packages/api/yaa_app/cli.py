@@ -36,6 +36,7 @@ def _setup_logging(level: str = "INFO") -> None:
 def _build_agent_registry(
     settings: AppSettings,
     collector: UsageCollector | None = None,
+    elevenlabs_api_key: str | None = None,
 ) -> AgentRegistry:
     """에이전트 레지스트리를 빌드합니다.
 
@@ -74,7 +75,8 @@ def _build_agent_registry(
     seo_optimizer = SEOOptimizerAgent(llm=seo_llm)
     media_editor = MediaEditorAgent()
 
-    voice_generator = ElevenLabsVoiceGenerator(api_key=settings.elevenlabs_api_key)
+    effective_elevenlabs_key = elevenlabs_api_key or settings.elevenlabs_api_key
+    voice_generator = ElevenLabsVoiceGenerator(api_key=effective_elevenlabs_key)
     image_generator = MidjourneyGenerator(api_key=settings.midjourney_api_key)
     media_generator = MediaGeneratorAgent(
         voice_generator=voice_generator,
