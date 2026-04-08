@@ -159,9 +159,19 @@ async def _resolve_jwt(
     if not user.is_active:
         return AuthContext()
 
-    workspace_repo = WorkspaceRepository(session)
-    workspaces = await workspace_repo.list_by_owner(user.id)
-    workspace_id = workspaces[0].id if workspaces else None
+    # JWT에 workspace_id가 있으면 우선 사용 (멀티 워크스페이스 지원)
+    jwt_workspace_id = payload.get("workspace_id")
+    if jwt_workspace_id:
+        workspace_repo = WorkspaceRepository(session)
+        ws = await workspace_repo.get(jwt_workspace_id)
+        if ws and ws.owner_id == user.id:
+            workspace_id = jwt_workspace_id
+        else:
+            workspace_id = None
+    else:
+        workspace_repo = WorkspaceRepository(session)
+        workspaces = await workspace_repo.list_by_owner(user.id)
+        workspace_id = workspaces[0].id if workspaces else None
 
     return AuthContext(
         user_id=user.id,

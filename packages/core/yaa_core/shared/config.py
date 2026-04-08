@@ -68,6 +68,7 @@ class AppSettings(BaseSettings):
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
     internal_api_secret: str = ""  # NextAuth ↔ FastAPI 내부 통신 시크릿
+    encryption_key: str = ""  # Fernet 대칭 암호화 키 (API 키 암호화용)
 
     # Rate Limiting
     rate_limit_per_minute: int = 60
@@ -107,12 +108,30 @@ class ChannelRegistry:
     """채널 설정을 관리하는 레지스트리.
 
     channels/ 디렉토리에서 채널별 config.yaml과 brand_guide.yaml을 로드합니다.
+    워크스페이스 격리: for_workspace(workspace_id)로 스코프된 인스턴스 생성.
     """
 
-    def __init__(self, channels_dir: str | Path = "./channels") -> None:
-        self._channels_dir = Path(channels_dir)
+    def __init__(
+        self,
+        channels_dir: str | Path = "./channels",
+        workspace_id: str | None = None,
+    ) -> None:
+        base = Path(channels_dir)
+        if workspace_id:
+            self._channels_dir = base / workspace_id
+        else:
+            self._channels_dir = base
+        self._base_channels_dir = base
+        self._workspace_id = workspace_id
         self._settings_cache: dict[str, ChannelSettings] = {}
         self._brand_guide_cache: dict[str, BrandGuide] = {}
+
+    def for_workspace(self, workspace_id: str) -> ChannelRegistry:
+        """워크스페이스별로 스코프된 ChannelRegistry를 반환합니다."""
+        return ChannelRegistry(
+            channels_dir=self._base_channels_dir,
+            workspace_id=workspace_id,
+        )
 
     @property
     def channels_dir(self) -> Path:

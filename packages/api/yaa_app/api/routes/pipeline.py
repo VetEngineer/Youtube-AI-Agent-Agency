@@ -54,9 +54,10 @@ async def _execute_pipeline(
         logger.error("DB 세션 팩토리가 없습니다: run_id=%s", run_id)
         return
 
-    # 워크스페이스별 ElevenLabs 키 로드
+    # 워크스페이스별 채널 격리 + ElevenLabs 키 로드
     workspace_elevenlabs_key: str | None = None
     if workspace_id:
+        channel_registry = channel_registry.for_workspace(workspace_id)
         async with session_factory() as session:
             ws_repo = WorkspaceRepository(session)
             workspace = await ws_repo.get(workspace_id)
@@ -72,7 +73,7 @@ async def _execute_pipeline(
 
     try:
         agent_registry = _build_agent_registry(
-            settings, collector=collector, elevenlabs_api_key=workspace_elevenlabs_key
+            settings, collector=collector, elevenlabs_api_key=workspace_elevenlabs_key,
         )
         pipeline = compile_pipeline(agent_registry)
         initial_state = create_initial_state(

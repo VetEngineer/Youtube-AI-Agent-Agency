@@ -98,6 +98,10 @@ async def execute_pipeline_task(
 
             channel_registry = ChannelRegistry(settings.channels_dir)
 
+        # 워크스페이스별 스코프 적용
+        if workspace_id:
+            channel_registry = channel_registry.for_workspace(workspace_id)
+
         # 워크스페이스별 ElevenLabs API 키 로드
         workspace_elevenlabs_key: str | None = None
         if workspace_id:

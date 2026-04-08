@@ -95,15 +95,13 @@ async def get_plan_usage(
     run_repo = RunRepository(session)
     pipelines_used = await run_repo.count_monthly(workspace.id)
 
-    # 채널 수는 ChannelRegistry에서 가져오는 대신
-    # 워크스페이스의 채널 한도 정보를 요금제에서 가져옴
-    # (실제 채널 수는 파일시스템 기반이므로 0으로 대체, 프론트엔드에서 채널 API 호출로 보완)
     channels_used = 0
     try:
         from yaa_app.api.dependencies import get_channel_registry
 
         registry = get_channel_registry()
-        channels_used = len(registry.list_channels())
+        scoped = registry.for_workspace(auth.workspace_id)
+        channels_used = len(scoped.list_channels())
     except Exception:
         logger.debug("채널 수 조회 실패, 0으로 설정")
 

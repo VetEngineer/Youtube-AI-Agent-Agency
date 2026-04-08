@@ -101,8 +101,21 @@ class UserRepository:
 class WorkspaceRepository:
     """워크스페이스 저장소."""
 
+    _ENCRYPTED_FIELDS = {"youtube_api_key", "elevenlabs_api_key"}
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    @staticmethod
+    def _decrypt_workspace(workspace: WorkspaceModel) -> WorkspaceModel:
+        """워크스페이스의 암호화된 필드를 복호화합니다."""
+        from yaa_core.shared.encryption import decrypt_value
+
+        if workspace.youtube_api_key:
+            workspace.youtube_api_key = decrypt_value(workspace.youtube_api_key)
+        if workspace.elevenlabs_api_key:
+            workspace.elevenlabs_api_key = decrypt_value(workspace.elevenlabs_api_key)
+        return workspace
 
     async def create(
         self,
@@ -127,11 +140,14 @@ class WorkspaceRepository:
         return workspace
 
     async def get(self, workspace_id: str) -> WorkspaceModel | None:
-        """워크스페이스 ID로 조회합니다."""
+        """워크스페이스 ID로 조회합니다 (암호화 필드 자동 복호화)."""
         result = await self._session.execute(
             select(WorkspaceModel).where(WorkspaceModel.id == workspace_id)
         )
-        return result.scalar_one_or_none()
+        ws = result.scalar_one_or_none()
+        if ws:
+            self._decrypt_workspace(ws)
+        return ws
 
     async def list_by_owner(self, owner_id: str) -> list[WorkspaceModel]:
         """소유자의 워크스페이스 목록을 조회합니다."""
@@ -140,10 +156,19 @@ class WorkspaceRepository:
             .where(WorkspaceModel.owner_id == owner_id)
             .order_by(WorkspaceModel.created_at.asc())
         )
-        return list(result.scalars().all())
+        workspaces = list(result.scalars().all())
+        for ws in workspaces:
+            self._decrypt_workspace(ws)
+        return workspaces
 
     async def update(self, workspace_id: str, **kwargs: Any) -> None:
-        """워크스페이스 정보를 업데이트합니다."""
+        """워크스페이스 정보를 업데이트합니다 (API 키 자동 암호화)."""
+        from yaa_core.shared.encryption import encrypt_value
+
+        for field in self._ENCRYPTED_FIELDS:
+            if field in kwargs and kwargs[field] is not None:
+                kwargs[field] = encrypt_value(kwargs[field])
+
         await self._session.execute(
             update(WorkspaceModel).where(WorkspaceModel.id == workspace_id).values(**kwargs)
         )
