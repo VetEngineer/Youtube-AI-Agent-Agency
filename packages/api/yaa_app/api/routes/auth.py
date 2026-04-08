@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -75,13 +74,27 @@ class MeResponse(BaseModel):
 
 
 def _hash_password(password: str) -> str:
-    """패스워드를 SHA-256으로 해싱합니다."""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """패스워드를 bcrypt로 해싱합니다."""
+    import bcrypt
+
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def _verify_password(password: str, password_hash: str) -> bool:
-    """패스워드를 검증합니다."""
-    return _hash_password(password) == password_hash
+    """패스워드를 검증합니다 (bcrypt + SHA-256 레거시 호환)."""
+    import bcrypt
+
+    # bcrypt 해시 ($2b$ 접두사)
+    if password_hash.startswith("$2"):
+        return bcrypt.checkpw(password.encode(), password_hash.encode())
+
+    # 레거시 SHA-256 해시 (마이그레이션 기간)
+    import hashlib
+
+    if hashlib.sha256(password.encode()).hexdigest() == password_hash:
+        return True
+
+    return False
 
 
 def _create_jwt(payload: dict, secret: str, algorithm: str, expires_delta: timedelta) -> str:
