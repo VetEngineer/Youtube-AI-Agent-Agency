@@ -42,7 +42,7 @@ class MediaGeneratorAgent:
     def __init__(
         self,
         voice_generator: ElevenLabsVoiceGenerator,
-        image_generator: ImageGenerator,
+        image_generator: ImageGenerator | None = None,
     ) -> None:
         self._voice_generator = voice_generator
         self._image_generator = image_generator
@@ -109,6 +109,11 @@ class MediaGeneratorAgent:
         """
         if not prompt.strip():
             raise MediaGeneratorError("이미지 프롬프트가 비어 있습니다")
+
+        if self._image_generator is None:
+            raise MediaGeneratorError(
+                "이미지 생성기가 설정되지 않았습니다. MIDJOURNEY_API_KEY를 설정하세요."
+            )
 
         full_prompt = self._build_styled_prompt(prompt, style)
 

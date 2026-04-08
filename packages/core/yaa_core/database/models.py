@@ -237,6 +237,7 @@ class AuditLogModel(Base):
     status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     api_key_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     user_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    workspace_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
     duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)

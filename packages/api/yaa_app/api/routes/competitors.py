@@ -148,14 +148,18 @@ async def add_competitor(
 @router.get("/{competitor_id}", response_model=CompetitorDetailResponse)
 async def get_competitor(
     competitor_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
     _api_key_id: str | None = Depends(require_api_key),
 ) -> CompetitorDetailResponse:
     """경쟁 채널 상세 정보와 최근 영상 목록을 조회합니다."""
+    workspace_id = await _resolve_workspace_id(request)
     repo = CompetitorRepository(session)
     competitor = await repo.get(competitor_id)
     if competitor is None:
         raise HTTPException(status_code=404, detail="경쟁 채널을 찾을 수 없습니다.")
+    if competitor.workspace_id != workspace_id:
+        raise HTTPException(status_code=403, detail="다른 워크스페이스의 경쟁 채널입니다.")
 
     videos = await repo.list_videos(competitor_id, limit=20)
 
@@ -168,14 +172,18 @@ async def get_competitor(
 @router.delete("/{competitor_id}")
 async def delete_competitor(
     competitor_id: str,
+    request: Request,
     session: AsyncSession = Depends(get_db_session),
     _admin_key_id: str | None = Depends(require_admin_scope),
 ) -> dict[str, str]:
     """경쟁 채널을 제거합니다."""
+    workspace_id = await _resolve_workspace_id(request)
     repo = CompetitorRepository(session)
     competitor = await repo.get(competitor_id)
     if competitor is None:
         raise HTTPException(status_code=404, detail="경쟁 채널을 찾을 수 없습니다.")
+    if competitor.workspace_id != workspace_id:
+        raise HTTPException(status_code=403, detail="다른 워크스페이스의 경쟁 채널입니다.")
 
     await repo.delete(competitor_id)
     await session.commit()
@@ -199,6 +207,8 @@ async def refresh_competitor(
     competitor = await repo.get(competitor_id)
     if competitor is None:
         raise HTTPException(status_code=404, detail="경쟁 채널을 찾을 수 없습니다.")
+    if competitor.workspace_id != workspace_id:
+        raise HTTPException(status_code=403, detail="다른 워크스페이스의 경쟁 채널입니다.")
 
     from yaa_agents.competitor.collector import CompetitorCollector
 

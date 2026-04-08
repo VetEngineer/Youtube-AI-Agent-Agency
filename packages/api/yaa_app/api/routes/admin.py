@@ -144,19 +144,22 @@ async def list_audit_logs(
     offset: int = Query(0, ge=0, description="오프셋"),
     session: AsyncSession = Depends(get_db_session),
     _admin_key_id: str | None = Depends(require_admin_scope),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> AuditLogListResponse:
-    """감사 로그를 조회합니다."""
+    """감사 로그를 조회합니다 (자기 워크스페이스만)."""
     repo = AuditLogRepository(session)
 
     logs = await repo.list_with_filters(
         api_key_id=api_key_id,
         method=method,
+        workspace_id=auth.workspace_id,
         limit=limit,
         offset=offset,
     )
     total = await repo.count_with_filters(
         api_key_id=api_key_id,
         method=method,
+        workspace_id=auth.workspace_id,
     )
 
     return AuditLogListResponse(
@@ -168,6 +171,7 @@ async def list_audit_logs(
                 path=log.path,
                 status_code=log.status_code,
                 api_key_id=log.api_key_id,
+                workspace_id=log.workspace_id,
                 ip_address=log.ip_address,
                 duration_ms=log.duration_ms,
             )

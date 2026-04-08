@@ -40,6 +40,7 @@ async def _execute_pipeline(
     dry_run: bool,
     settings: AppSettings,
     channel_registry: ChannelRegistry,
+    workspace_id: str | None = None,
 ) -> None:
     """백그라운드에서 파이프라인을 실행합니다 (Redis 미사용 시 폴백)."""
     from yaa_agents.orchestrator import compile_pipeline, create_initial_state
@@ -53,6 +54,15 @@ async def _execute_pipeline(
         logger.error("DB 세션 팩토리가 없습니다: run_id=%s", run_id)
         return
 
+    # 워크스페이스별 ElevenLabs 키 로드
+    workspace_elevenlabs_key: str | None = None
+    if workspace_id:
+        async with session_factory() as session:
+            ws_repo = WorkspaceRepository(session)
+            workspace = await ws_repo.get(workspace_id)
+            if workspace and workspace.elevenlabs_api_key:
+                workspace_elevenlabs_key = workspace.elevenlabs_api_key
+
     async with session_factory() as session:
         repo = RunRepository(session)
         await repo.update_status(run_id, status="running")
@@ -61,7 +71,9 @@ async def _execute_pipeline(
     collector = UsageCollector()
 
     try:
-        agent_registry = _build_agent_registry(settings, collector=collector)
+        agent_registry = _build_agent_registry(
+            settings, collector=collector, elevenlabs_api_key=workspace_elevenlabs_key
+        )
         pipeline = compile_pipeline(agent_registry)
         initial_state = create_initial_state(
             channel_id=channel_id,
@@ -180,6 +192,7 @@ async def run_pipeline(
             dry_run=request.dry_run,
             settings=settings,
             channel_registry=channel_registry,
+            workspace_id=auth.workspace_id,
         )
 
     return PipelineRunResponse(
@@ -248,7 +261,7 @@ async def get_pipeline_run(
         raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
 
     # workspace 격리: 자기 workspace의 run만 접근 가능
-    if run.workspace_id and run.workspace_id != auth.workspace_id:
+    if run.workspace_id != auth.workspace_id:
         raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
 
     usage_repo = UsageRepository(session)
@@ -284,7 +297,7 @@ async def cancel_pipeline_run(
     if run is None:
         raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
 
-    if run.workspace_id and run.workspace_id != auth.workspace_id:
+    if run.workspace_id != auth.workspace_id:
         raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
 
     if run.status not in {"pending", "running"}:
@@ -308,7 +321,7 @@ async def stream_pipeline_run(
     if run is None:
         raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
 
-    if run.workspace_id and run.workspace_id != auth.workspace_id:
+    if run.workspace_id != auth.workspace_id:
         raise HTTPException(status_code=404, detail="파이프라인 실행을 찾을 수 없습니다")
 
     async def event_generator() -> AsyncGenerator[str, None]:
@@ -419,6 +432,7 @@ async def retry_pipeline_run(
             dry_run=original_run.dry_run,
             settings=settings,
             channel_registry=channel_registry,
+            workspace_id=original_run.workspace_id,
         )
 
     return PipelineRunResponse(

@@ -203,6 +203,7 @@ class AuditLogEntry(BaseModel):
     path: str
     status_code: int | None = None
     api_key_id: str | None = None
+    workspace_id: str | None = None
     ip_address: str | None = None
     duration_ms: float | None = None
 

@@ -440,6 +440,7 @@ class AuditLogRepository:
         status_code: int | None = None,
         api_key_id: str | None = None,
         user_id: str | None = None,
+        workspace_id: str | None = None,
         ip_address: str | None = None,
         user_agent: str | None = None,
         duration_ms: float | None = None,
@@ -451,6 +452,7 @@ class AuditLogRepository:
             status_code=status_code,
             api_key_id=api_key_id,
             user_id=user_id,
+            workspace_id=workspace_id,
             ip_address=ip_address,
             user_agent=user_agent,
             duration_ms=duration_ms,
@@ -470,6 +472,7 @@ class AuditLogRepository:
         self,
         api_key_id: str | None = None,
         method: str | None = None,
+        workspace_id: str | None = None,
     ) -> list:
         """필터 조건을 생성합니다."""
         conditions = []
@@ -477,17 +480,20 @@ class AuditLogRepository:
             conditions.append(AuditLogModel.api_key_id == api_key_id)
         if method is not None:
             conditions.append(AuditLogModel.method == method.upper())
+        if workspace_id is not None:
+            conditions.append(AuditLogModel.workspace_id == workspace_id)
         return conditions
 
     async def list_with_filters(
         self,
         api_key_id: str | None = None,
         method: str | None = None,
+        workspace_id: str | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[AuditLogModel]:
         """필터링을 지원하는 감사 로그 목록 조회."""
-        conditions = self._build_filter_query(api_key_id, method)
+        conditions = self._build_filter_query(api_key_id, method, workspace_id)
         query = (
             select(AuditLogModel)
             .where(*conditions)
@@ -502,9 +508,10 @@ class AuditLogRepository:
         self,
         api_key_id: str | None = None,
         method: str | None = None,
+        workspace_id: str | None = None,
     ) -> int:
         """필터링된 로그 개수를 반환합니다."""
-        conditions = self._build_filter_query(api_key_id, method)
+        conditions = self._build_filter_query(api_key_id, method, workspace_id)
         query = select(func.count(AuditLogModel.id)).where(*conditions)
         result = await self._session.execute(query)
         return result.scalar_one()
@@ -775,10 +782,6 @@ class SubscriptionRepository:
 class CompetitorRepository:
     """경쟁 채널 저장소."""
 
-
-class OAuthTokenRepository:
-    """OAuth 토큰 저장소."""
-
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -920,6 +923,13 @@ class OAuthTokenRepository:
             .limit(limit)
         )
         return list(result.scalars().all())
+
+
+class OAuthTokenRepository:
+    """OAuth 토큰 저장소."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
 
     async def get_by_workspace(
         self, workspace_id: str, provider: str = "youtube"

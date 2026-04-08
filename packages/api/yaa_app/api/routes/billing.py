@@ -691,13 +691,14 @@ async def confirm_toss_payment(
                 existing.id,
                 plan=plan,
                 status="active",
-                stripe_customer_id=existing.stripe_customer_id or toss_payment_key,
+                stripe_subscription_id=toss_payment_key,
             )
         else:
             await sub_repo.create(
                 subscription_id=str(uuid.uuid4()),
                 workspace_id=workspace_id,
-                stripe_customer_id=toss_payment_key,  # Toss는 customer ID 대신 payment key 사용
+                stripe_customer_id=workspace_id,
+                stripe_subscription_id=toss_payment_key,
                 plan=plan,
                 status="active",
             )
@@ -735,19 +736,25 @@ async def toss_webhook(
 
     payload = await request.body()
 
-    # Toss Payments 웹훅 서명 검증 (webhook_secret 설정된 경우)
-    if settings.toss_webhook_secret:
-        sig_header = request.headers.get("X-Toss-Signature", "")
-        expected_sig = hmac.new(
-            settings.toss_webhook_secret.encode(),
-            payload,
-            hashlib.sha256,
-        ).hexdigest()
-        if not hmac.compare_digest(sig_header, expected_sig):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="웹훅 서명 검증에 실패했습니다.",
-            )
+    # Toss Payments 웹훅 서명 검증 (필수)
+    if not settings.toss_webhook_secret:
+        logger.error("TOSS_WEBHOOK_SECRET이 설정되지 않아 웹훅을 거부합니다.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="웹훅 시크릿이 설정되지 않았습니다.",
+        )
+
+    sig_header = request.headers.get("X-Toss-Signature", "")
+    expected_sig = hmac.new(
+        settings.toss_webhook_secret.encode(),
+        payload,
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(sig_header, expected_sig):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="웹훅 서명 검증에 실패했습니다.",
+        )
 
     import json
 
@@ -777,13 +784,16 @@ async def toss_webhook(
         )
 
         if toss_status == "DONE" and payment_key:
-            # payment_key로 구독 조회 후 상태 업데이트
             sub_repo = SubscriptionRepository(session)
-            subscription = await sub_repo.get_by_stripe_customer(payment_key)
+            subscription = await sub_repo.get_by_stripe_subscription(payment_key)
             if subscription:
                 await sub_repo.update(subscription.id, status="active")
 
         elif toss_status in ("CANCELED", "PARTIAL_CANCELED"):
+            sub_repo = SubscriptionRepository(session)
+            subscription = await sub_repo.get_by_stripe_subscription(payment_key)
+            if subscription:
+                await sub_repo.update(subscription.id, status="canceled")
             logger.info("Toss 결제 취소: order_id=%s", order_id)
 
     await session.commit()

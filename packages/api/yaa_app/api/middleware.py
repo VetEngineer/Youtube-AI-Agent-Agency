@@ -50,12 +50,16 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             return
 
         async with session_factory() as session:
+            auth_ctx = getattr(request.state, "auth_context", None)
             repo = AuditLogRepository(session)
             await repo.create(
                 method=request.method,
                 path=request.url.path,
                 status_code=response.status_code,
-                api_key_id=getattr(request.state, "api_key_id", None),
+                api_key_id=(
+                    auth_ctx.api_key_id if auth_ctx else getattr(request.state, "api_key_id", None)
+                ),
+                workspace_id=auth_ctx.workspace_id if auth_ctx else None,
                 ip_address=request.client.host if request.client else None,
                 user_agent=request.headers.get("user-agent", "")[:500],
                 duration_ms=round(duration_ms, 2),
