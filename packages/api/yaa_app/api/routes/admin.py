@@ -114,6 +114,12 @@ async def deactivate_key(
     if target_key is None:
         raise HTTPException(status_code=404, detail=f"API 키를 찾을 수 없습니다: {key_id}")
 
+    # 워크스페이스 소유권 확인 (#49)
+    auth = getattr(request.state, "auth_context", None)
+    if auth and auth.workspace_id and target_key.workspace_id:
+        if target_key.workspace_id != auth.workspace_id:
+            raise HTTPException(status_code=403, detail="다른 워크스페이스의 API 키입니다.")
+
     if not target_key.is_active:
         raise HTTPException(status_code=400, detail="이미 비활성화된 API 키입니다.")
 
