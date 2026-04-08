@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.engine import get_db_session
 from yaa_core.database.repositories import WorkspaceRepository
 
-from yaa_app.api.auth import require_api_key
+from yaa_app.api.auth import require_api_key, require_scope
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ async def update_integrations(
     body: UpdateIntegrationsRequest,
     request: Request,
     session: AsyncSession = Depends(get_db_session),
-    _api_key_id: str | None = Depends(require_api_key),
+    _api_key_id: str | None = Depends(require_scope("write")),
 ) -> IntegrationsResponse:
     """워크스페이스의 통합 설정을 업데이트합니다."""
     auth_ctx = getattr(request.state, "auth_context", None)

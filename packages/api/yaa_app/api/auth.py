@@ -34,6 +34,7 @@ class AuthContext:
     user_id: str | None = None
     workspace_id: str | None = None
     api_key_id: str | None = None
+    scopes: tuple[str, ...] = ("read", "write")  # JWT는 기본 전체 권한
     auth_method: str = "none"  # "api_key", "jwt", "none"
 
 
@@ -109,10 +110,19 @@ async def _resolve_api_key(
     if api_key is None:
         return AuthContext()
 
+    # 만료된 키 거부 (#4)
+    if api_key.expires_at is not None:
+        from datetime import UTC, datetime
+
+        if api_key.expires_at <= datetime.now(UTC):
+            logger.warning("만료된 API 키 사용 시도: key_id=%s", api_key.id)
+            return AuthContext()
+
     await repo.update_last_used(api_key.id)
     return AuthContext(
         api_key_id=api_key.id,
         workspace_id=api_key.workspace_id,
+        scopes=tuple(api_key.scopes),
         auth_method="api_key",
     )
 
@@ -233,6 +243,36 @@ async def optional_api_key(
     if ctx.auth_method != "none":
         request.state.auth_context = ctx
     return ctx.api_key_id
+
+
+def require_scope(scope: str):
+    """특정 scope를 요구하는 FastAPI 의존성 팩토리."""
+
+    async def _dependency(
+        request: Request,
+        session: AsyncSession = Depends(get_db_session),
+        settings: AppSettings = Depends(get_settings),
+    ) -> str | None:
+        if settings.disable_auth:
+            return None
+
+        ctx = await _resolve_auth(request, session, settings)
+        if ctx.auth_method == "none":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="유효하지 않은 인증 정보입니다.",
+            )
+
+        if scope not in ctx.scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"'{scope}' 권한이 필요합니다.",
+            )
+
+        request.state.auth_context = ctx
+        return ctx.api_key_id
+
+    return _dependency
 
 
 async def require_admin_scope(
