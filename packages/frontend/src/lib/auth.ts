@@ -97,9 +97,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (account?.provider === 'bypass') return true;
 
             try {
+                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                if (process.env.INTERNAL_API_SECRET) {
+                    headers['X-Internal-Secret'] = process.env.INTERNAL_API_SECRET;
+                }
                 await fetch(`${API_BASE_URL}/users/oauth/callback`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify({
                         email: user.email,
                         name: user.name,

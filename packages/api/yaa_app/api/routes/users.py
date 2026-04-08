@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.engine import get_db_session
@@ -53,16 +53,36 @@ class WorkspaceResponse(BaseModel):
     channel_quota: int
 
 
+def _verify_internal_secret(
+    settings: AppSettings,
+    x_internal_secret: str | None,
+) -> None:
+    """내부 API 시크릿을 검증합니다."""
+    if settings.disable_auth:
+        return
+    if not settings.internal_api_secret:
+        raise HTTPException(
+            status_code=500,
+            detail="INTERNAL_API_SECRET이 설정되지 않았습니다.",
+        )
+    if not x_internal_secret or x_internal_secret != settings.internal_api_secret:
+        raise HTTPException(status_code=403, detail="내부 API 접근 권한이 없습니다.")
+
+
 @router.post("/oauth/callback", response_model=UserResponse)
 async def oauth_callback(
     request: OAuthLoginRequest,
     session: AsyncSession = Depends(get_db_session),
     settings: AppSettings = Depends(get_settings),
+    x_internal_secret: str | None = Header(None),
 ) -> UserResponse:
     """OAuth 로그인 콜백 - 사용자 생성 또는 조회.
 
     NextAuth.js에서 JWT 발급 전 사용자 DB 동기화에 사용합니다.
+    INTERNAL_API_SECRET 헤더가 필요합니다.
     """
+    _verify_internal_secret(settings, x_internal_secret)
+
     user_repo = UserRepository(session)
     ws_repo = WorkspaceRepository(session)
 

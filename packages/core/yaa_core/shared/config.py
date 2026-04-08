@@ -67,6 +67,7 @@ class AppSettings(BaseSettings):
     disable_auth: bool = False
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
+    internal_api_secret: str = ""  # NextAuth ↔ FastAPI 내부 통신 시크릿
 
     # Rate Limiting
     rate_limit_per_minute: int = 60
