@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import logging
 import uuid
+from collections import OrderedDict
 from datetime import UTC, datetime
 
 import httpx
@@ -26,6 +27,10 @@ from yaa_app.api.dependencies import get_settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Stripe 웹훅 이벤트 멱등성 캐시 (최대 10000건, LRU 방식)
+_STRIPE_PROCESSED_EVENTS: OrderedDict[str, bool] = OrderedDict()
+_STRIPE_EVENT_CACHE_MAX = 10000
 
 
 # ============================================
@@ -259,19 +264,32 @@ async def stripe_webhook(
             detail="서명 검증에 실패했습니다.",
         )
 
+    event_id = event.get("id", "")
     event_type = event["type"]
     data = event["data"]["object"]
 
-    logger.info("Stripe 웹훅 수신: type=%s", event_type)
+    # 이벤트 멱등성 체크 (#69)
+    if event_id and event_id in _STRIPE_PROCESSED_EVENTS:
+        logger.info("Stripe 웹훅 중복 이벤트 (스킵): id=%s type=%s", event_id, event_type)
+        return {"status": "ok"}
+
+    logger.info("Stripe 웹훅 수신: id=%s type=%s", event_id, event_type)
 
     if event_type == "checkout.session.completed":
-        await _handle_checkout_completed(data, session)
+        await _handle_checkout_completed(data, session, settings)
     elif event_type == "customer.subscription.updated":
         await _handle_subscription_updated(data, session, settings)
     elif event_type == "customer.subscription.deleted":
         await _handle_subscription_deleted(data, session)
 
     await session.commit()
+
+    # 처리 완료 후 캐시에 추가
+    if event_id:
+        _STRIPE_PROCESSED_EVENTS[event_id] = True
+        while len(_STRIPE_PROCESSED_EVENTS) > _STRIPE_EVENT_CACHE_MAX:
+            _STRIPE_PROCESSED_EVENTS.popitem(last=False)
+
     return {"status": "ok"}
 
 
@@ -280,12 +298,19 @@ async def stripe_webhook(
 # ============================================
 
 
-async def _handle_checkout_completed(data: dict, session: AsyncSession) -> None:
+async def _handle_checkout_completed(
+    data: dict, session: AsyncSession, settings: AppSettings | None = None
+) -> None:
     """checkout.session.completed 이벤트를 처리합니다."""
     workspace_id = data.get("metadata", {}).get("workspace_id")
     plan = data.get("metadata", {}).get("plan", "pro")
     customer_id = data.get("customer")
     subscription_id = data.get("subscription")
+
+    # plan이 유효한 값인지 검증 (#69)
+    if plan not in PLAN_QUOTAS:
+        logger.warning("Checkout 이벤트에 유효하지 않은 plan: %s → free로 처리", plan)
+        plan = "free"
 
     if not workspace_id or not customer_id:
         logger.warning("Checkout 완료 이벤트에 workspace_id 또는 customer_id 누락")
@@ -417,7 +442,10 @@ async def _handle_subscription_deleted(data: dict, session: AsyncSession) -> Non
 
 
 def _price_id_to_plan(price_id: str, settings: AppSettings | None = None) -> str:
-    """Stripe Price ID를 요금제 이름으로 변환합니다."""
+    """Stripe Price ID를 요금제 이름으로 변환합니다.
+
+    settings 매핑 실패 시 free로 안전하게 폴백합니다 (#69).
+    """
     if settings:
         price_map = {
             settings.stripe_price_pro: "pro",
@@ -427,10 +455,8 @@ def _price_id_to_plan(price_id: str, settings: AppSettings | None = None) -> str
         if plan:
             return plan
 
-    # settings 매핑 실패 시 Price ID 접미사로 추론 (폴백)
-    if "enterprise" in price_id.lower():
-        return "enterprise"
-    return "pro"
+    logger.warning("Price ID를 요금제로 매핑할 수 없습니다: %s → free로 폴백", price_id)
+    return "free"
 
 
 # ============================================
@@ -632,9 +658,11 @@ async def confirm_toss_payment(
             detail="결제 금액이 선택한 요금제와 일치하지 않습니다.",
         )
 
-    # 멱등성 처리: 이미 승인된 payment_key인지 확인
+    # 멱등성 처리: 이미 승인된 payment_key인지 확인 (SELECT FOR UPDATE으로 race condition 방지)
     sub_repo_check = SubscriptionRepository(session)
-    existing_payment = await sub_repo_check.get_by_stripe_subscription(body.payment_key)
+    existing_payment = await sub_repo_check.get_by_stripe_subscription(
+        body.payment_key, for_update=True
+    )
     if existing_payment and existing_payment.status == "active":
         logger.info(
             "Toss 결제 중복 요청 (이미 처리됨): payment_key=%s workspace=%s",
@@ -679,6 +707,31 @@ async def confirm_toss_payment(
 
     payment_data = response.json()
     toss_status = payment_data.get("status", "")
+
+    # Toss API 응답에서 금액/주문ID 교차 검증 (#69)
+    confirmed_amount = payment_data.get("totalAmount")
+    confirmed_order_id = payment_data.get("orderId")
+    if confirmed_amount is not None and confirmed_amount != expected_amount:
+        logger.error(
+            "Toss 금액 불일치: expected=%d actual=%d order_id=%s",
+            expected_amount,
+            confirmed_amount,
+            body.order_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="결제 금액이 서버 기록과 일치하지 않습니다.",
+        )
+    if confirmed_order_id and confirmed_order_id != body.order_id:
+        logger.error(
+            "Toss 주문ID 불일치: expected=%s actual=%s",
+            body.order_id,
+            confirmed_order_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="주문 ID가 일치하지 않습니다.",
+        )
 
     if toss_status == "DONE":
         # 구독 생성/업데이트
@@ -789,7 +842,14 @@ async def toss_webhook(
             sub_repo = SubscriptionRepository(session)
             subscription = await sub_repo.get_by_stripe_subscription(payment_key)
             if subscription:
-                await sub_repo.update(subscription.id, status="active")
+                # 취소된 구독은 DONE 웹훅으로 재활성화하지 않음 (#69)
+                if subscription.status == "canceled":
+                    logger.warning(
+                        "취소된 구독에 DONE 웹훅 수신 (무시): subscription=%s",
+                        subscription.id,
+                    )
+                else:
+                    await sub_repo.update(subscription.id, status="active")
 
         elif toss_status in ("CANCELED", "PARTIAL_CANCELED"):
             sub_repo = SubscriptionRepository(session)

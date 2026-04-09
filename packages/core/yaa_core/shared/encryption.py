@@ -26,22 +26,17 @@ def generate_encryption_key() -> str:
 
 
 def encrypt_value(plaintext: str) -> str:
-    """평문을 암호화합니다. 키가 없으면 원문 반환."""
+    """평문을 암호화합니다. 키가 없으면 RuntimeError 발생."""
     key = _get_fernet_key()
     if not key:
-        logger.error(
-            "ENCRYPTION_KEY 미설정: API 키가 평문으로 저장됩니다. "
-            "프로덕션에서는 반드시 ENCRYPTION_KEY를 설정하세요."
+        raise RuntimeError(
+            "ENCRYPTION_KEY가 설정되지 않았습니다. "
+            "API 키 암호화를 위해 ENCRYPTION_KEY 환경변수를 설정하세요."
         )
-        return plaintext
-    try:
-        from cryptography.fernet import Fernet
+    from cryptography.fernet import Fernet
 
-        f = Fernet(key)
-        return "enc:" + f.encrypt(plaintext.encode()).decode()
-    except Exception:
-        logger.warning("암호화 실패, 원문 저장")
-        return plaintext
+    f = Fernet(key)
+    return "enc:" + f.encrypt(plaintext.encode()).decode()
 
 
 def decrypt_value(ciphertext: str) -> str:

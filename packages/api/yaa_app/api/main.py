@@ -64,11 +64,19 @@ def create_app() -> FastAPI:
     # 구조화 로깅 초기화
     setup_logging(log_format=settings.log_format, log_level=settings.log_level)
 
+    # 프로덕션에서는 OpenAPI 문서 비활성화 (#68)
+    docs_url = "/docs" if settings.disable_auth else None
+    redoc_url = "/redoc" if settings.disable_auth else None
+    openapi_url = "/openapi.json" if settings.disable_auth else None
+
     application = FastAPI(
         title="YouTube AI Agent Agency API",
         description="LangGraph 기반 YouTube 콘텐츠 자동화 파이프라인",
         version="0.2.0",
         lifespan=lifespan,
+        docs_url=docs_url,
+        redoc_url=redoc_url,
+        openapi_url=openapi_url,
     )
 
     # CORS 설정 (환경변수에서 읽기)

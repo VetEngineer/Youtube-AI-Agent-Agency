@@ -785,14 +785,19 @@ class SubscriptionRepository:
         return result.scalar_one_or_none()
 
     async def get_by_stripe_subscription(
-        self, stripe_subscription_id: str
+        self, stripe_subscription_id: str, *, for_update: bool = False
     ) -> SubscriptionModel | None:
-        """Stripe 구독 ID로 구독을 조회합니다."""
-        result = await self._session.execute(
-            select(SubscriptionModel).where(
-                SubscriptionModel.stripe_subscription_id == stripe_subscription_id
-            )
+        """Stripe 구독 ID로 구독을 조회합니다.
+
+        Args:
+            for_update: True이면 SELECT FOR UPDATE로 행 잠금 (멱등성 보장용)
+        """
+        stmt = select(SubscriptionModel).where(
+            SubscriptionModel.stripe_subscription_id == stripe_subscription_id
         )
+        if for_update:
+            stmt = stmt.with_for_update()
+        result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def update(self, subscription_id: str, **kwargs: Any) -> None:

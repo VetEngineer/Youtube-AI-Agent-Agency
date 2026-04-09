@@ -40,4 +40,10 @@ COPY entrypoint.sh /app/entrypoint.sh
 COPY worker-entrypoint.sh /app/worker-entrypoint.sh
 RUN chmod +x /app/entrypoint.sh /app/worker-entrypoint.sh
 
+# 비-root 사용자로 실행 (#68)
+RUN groupadd --gid 1000 appuser && \
+    useradd --uid 1000 --gid appuser --no-create-home appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
 CMD ["/app/entrypoint.sh"]

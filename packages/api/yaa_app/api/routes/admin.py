@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.engine import get_db_session
 from yaa_core.database.repositories import ApiKeyRepository, AuditLogRepository
@@ -103,9 +103,9 @@ async def list_keys(
 @router.delete("/api-keys/{key_id}")
 async def deactivate_key(
     key_id: str,
-    request: Request,
     session: AsyncSession = Depends(get_db_session),
     admin_key_id: str | None = Depends(require_admin_scope),
+    auth: AuthContext = Depends(get_auth_context),
 ) -> dict[str, str]:
     """API 키를 비활성화합니다."""
     repo = ApiKeyRepository(session)
@@ -114,9 +114,9 @@ async def deactivate_key(
     if target_key is None:
         raise HTTPException(status_code=404, detail=f"API 키를 찾을 수 없습니다: {key_id}")
 
-    # 워크스페이스 소유권 확인 (#49)
-    auth = getattr(request.state, "auth_context", None)
-    if auth and auth.workspace_id and target_key.workspace_id:
+    # 워크스페이스 소유권 확인 (#49, #68)
+    # 인증된 사용자(workspace_id 있음)는 자기 워크스페이스 키만 삭제 가능
+    if auth.workspace_id:
         if target_key.workspace_id != auth.workspace_id:
             raise HTTPException(status_code=403, detail="다른 워크스페이스의 API 키입니다.")
 

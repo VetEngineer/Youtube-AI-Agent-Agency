@@ -81,10 +81,16 @@ async def create_api_key(
     return plaintext_key, key_id
 
 
+_JWT_SECRET_MIN_LENGTH = 32
+
+
 def _decode_jwt(token: str, settings: AppSettings) -> dict | None:
     """JWT 토큰을 디코딩합니다."""
     if not settings.jwt_secret:
         logger.error("JWT_SECRET이 구성되지 않았지만 JWT 토큰이 제공됨")
+        return None
+    if len(settings.jwt_secret) < _JWT_SECRET_MIN_LENGTH:
+        logger.error("JWT_SECRET이 너무 짧습니다 (최소 %d자)", _JWT_SECRET_MIN_LENGTH)
         return None
     try:
         import jwt
@@ -230,7 +236,7 @@ async def get_auth_context(
     인증 필수. workspace_id 포함.
     """
     if settings.disable_auth:
-        return AuthContext(auth_method="none", workspace_id="__dev__")
+        return AuthContext(auth_method="none", workspace_id=None)
 
     ctx = await _resolve_auth(request, session, settings)
     if ctx.auth_method == "none":

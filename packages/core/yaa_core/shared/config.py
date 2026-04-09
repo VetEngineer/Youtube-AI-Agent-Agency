@@ -118,6 +118,8 @@ class ChannelRegistry:
     ) -> None:
         base = Path(channels_dir)
         if workspace_id:
+            if not re.match(r"^[a-zA-Z0-9_-]+$", workspace_id):
+                raise ValueError(f"유효하지 않은 workspace_id입니다: {workspace_id!r}")
             self._channels_dir = base / workspace_id
         else:
             self._channels_dir = base
@@ -127,8 +129,15 @@ class ChannelRegistry:
         self._brand_guide_cache: dict[str, BrandGuide] = {}
         self._scoped_cache: dict[str, ChannelRegistry] = {}
 
+    @staticmethod
+    def _validate_workspace_id(workspace_id: str) -> None:
+        """workspace_id의 유효성을 검증합니다 (경로 순회 방지)."""
+        if not workspace_id or not re.match(r"^[a-zA-Z0-9_-]+$", workspace_id):
+            raise ValueError(f"유효하지 않은 workspace_id입니다: {workspace_id!r}")
+
     def for_workspace(self, workspace_id: str) -> ChannelRegistry:
         """워크스페이스별로 스코프된 ChannelRegistry를 반환합니다 (캐시됨)."""
+        self._validate_workspace_id(workspace_id)
         if workspace_id in self._scoped_cache:
             return self._scoped_cache[workspace_id]
         scoped = ChannelRegistry(
