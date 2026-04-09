@@ -186,14 +186,21 @@ class TestBuildToneGuide:
 
 class TestBuildSystemPrompt:
     def test_contains_tone_guide(self, sample_tone: ToneAndManner):
-        prompt = build_system_prompt(sample_tone)
-        assert "따뜻하지만 전문적인 수의사 친구" in prompt
-        assert "스크립트 라이터" in prompt
+        msg = build_system_prompt(sample_tone)
+        # SystemMessage with content blocks (cache_control 적용)
+        text = "".join(block["text"] for block in msg.content)
+        assert "따뜻하지만 전문적인 수의사 친구" in text
+        assert "스크립트 라이터" in text
 
     def test_contains_json_format(self, sample_tone: ToneAndManner):
-        prompt = build_system_prompt(sample_tone)
-        assert '"title"' in prompt
-        assert '"sections"' in prompt
+        msg = build_system_prompt(sample_tone)
+        text = "".join(block["text"] for block in msg.content)
+        assert '"title"' in text
+        assert '"sections"' in text
+
+    def test_cache_control_on_static_block(self, sample_tone: ToneAndManner):
+        msg = build_system_prompt(sample_tone)
+        assert msg.content[0]["cache_control"] == {"type": "ephemeral"}
 
 
 class TestBuildUserPrompt:
@@ -437,9 +444,12 @@ class TestScriptWriterAgentGenerate:
         messages = mock_llm.ainvoke.call_args[0][0]
         assert len(messages) == 2
 
-        # 시스템 프롬프트에 톤앤매너 포함 확인
+        # 시스템 프롬프트에 톤앤매너 포함 확인 (content blocks)
         system_msg = messages[0]
-        assert "따뜻하지만 전문적인 수의사 친구" in system_msg.content
+        system_text = "".join(
+            b["text"] for b in system_msg.content
+        ) if isinstance(system_msg.content, list) else system_msg.content
+        assert "따뜻하지만 전문적인 수의사 친구" in system_text
 
         # 유저 프롬프트에 주제 포함 확인
         user_msg = messages[1]

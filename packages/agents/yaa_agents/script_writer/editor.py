@@ -10,7 +10,7 @@ import json
 import logging
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from yaa_core.shared.llm_utils import extract_json_from_response
 from yaa_core.shared.models import Script, ScriptSection
 
@@ -38,13 +38,10 @@ class EditorAgent:
         Returns:
             다듬어진 Script 모델 (원본 Script 기반, full_text/sections 업데이트)
         """
-        system_prompt = build_editor_system_prompt()
+        system_msg = build_editor_system_prompt()
         user_prompt = build_editor_user_prompt(script.full_text, guidelines)
 
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ]
+        messages = [system_msg, HumanMessage(content=user_prompt)]
 
         try:
             response = await self._llm.ainvoke(messages)

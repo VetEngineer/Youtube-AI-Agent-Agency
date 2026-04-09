@@ -26,10 +26,10 @@ class SEOOptimizerAgent:
     키워드 리서치와 메타데이터 생성을 순차적으로 수행합니다.
     """
 
-    def __init__(self, llm: BaseChatModel) -> None:
+    def __init__(self, llm: BaseChatModel, *, use_batch: bool = False) -> None:
         self._llm = llm
-        self._keyword_researcher = KeywordResearcher(llm)
-        self._metadata_generator = MetadataGenerator(llm)
+        self._keyword_researcher = KeywordResearcher(llm, use_batch=use_batch)
+        self._metadata_generator = MetadataGenerator(llm, use_batch=use_batch)
 
     async def optimize(
         self,

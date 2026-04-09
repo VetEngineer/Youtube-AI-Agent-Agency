@@ -32,21 +32,35 @@ LLM_PRICING: dict[str, dict[str, dict[str, float]]] = {
         "claude-sonnet-4-20250514": {
             "prompt": 3.00 / 1_000_000,
             "completion": 15.00 / 1_000_000,
+            "cache_write": 3.75 / 1_000_000,
+            "cache_read": 0.30 / 1_000_000,
         },
     },
 }
 
 
-def calculate_cost(provider: str, model: str, prompt_tokens: int, completion_tokens: int) -> float:
-    """LLM 사용 비용을 계산합니다."""
+def calculate_cost(
+    provider: str,
+    model: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    cache_creation_tokens: int = 0,
+    cache_read_tokens: int = 0,
+) -> float:
+    """LLM 사용 비용을 계산합니다 (캐시 토큰 포함)."""
     provider_pricing = LLM_PRICING.get(provider, {})
     model_pricing = provider_pricing.get(model)
     if model_pricing is None:
         logger.warning("알 수 없는 모델 비용 0 처리: provider=%s, model=%s", provider, model)
         return 0.0
-    return (prompt_tokens * model_pricing["prompt"]) + (
+    cost = (prompt_tokens * model_pricing["prompt"]) + (
         completion_tokens * model_pricing["completion"]
     )
+    if cache_creation_tokens and "cache_write" in model_pricing:
+        cost += cache_creation_tokens * model_pricing["cache_write"]
+    if cache_read_tokens and "cache_read" in model_pricing:
+        cost += cache_read_tokens * model_pricing["cache_read"]
+    return cost
 
 
 # ============================================
@@ -86,7 +100,15 @@ class UsageTrackingCallback(BaseCallbackHandler):
             total_tokens = token_usage.get("total_tokens", 0) or (prompt_tokens + completion_tokens)
             model = llm_output.get("model_name") or llm_output.get("model", "unknown")
 
-            cost = calculate_cost(self.provider, model, prompt_tokens, completion_tokens)
+            # Anthropic prompt caching 토큰 추출
+            cache_creation = token_usage.get("cache_creation_input_tokens", 0) or 0
+            cache_read = token_usage.get("cache_read_input_tokens", 0) or 0
+
+            cost = calculate_cost(
+                self.provider, model, prompt_tokens, completion_tokens,
+                cache_creation_tokens=cache_creation,
+                cache_read_tokens=cache_read,
+            )
 
             self.collector.events.append(
                 {
@@ -96,6 +118,8 @@ class UsageTrackingCallback(BaseCallbackHandler):
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
                     "total_tokens": total_tokens,
+                    "cache_creation_tokens": cache_creation,
+                    "cache_read_tokens": cache_read,
                     "cost_usd": cost,
                 }
             )

@@ -2,13 +2,25 @@
 
 톤앤매너 가이드를 동적으로 주입하여 브랜드 일관성을 유지합니다.
 Strategist / Auditor / Editor 프롬프트도 포함합니다.
+
+Anthropic Prompt Caching:
+  정적 시스템 프롬프트에 cache_control을 적용하여 입력 토큰 비용 90% 절감.
+  - Auditor/Editor: 100% 정적 → 전체 캐시
+  - Strategist/Writer: 정적 베이스 + 동적 톤가이드 → 베이스만 캐시
 """
 
 from __future__ import annotations
 
+from langchain_core.messages import SystemMessage
 from yaa_core.shared.models import ToneAndManner
 
-SCRIPT_SYSTEM_PROMPT = """\
+_CACHE_CONTROL = {"type": "ephemeral"}
+
+# ============================================
+# Script Writer 프롬프트 (동적 - 톤가이드 주입)
+# ============================================
+
+_SCRIPT_SYSTEM_BASE = """\
 당신은 YouTube 영상 원고를 작성하는 전문 스크립트 라이터입니다.
 
 ## 역할
@@ -16,32 +28,28 @@ SCRIPT_SYSTEM_PROMPT = """\
 - 인트로, 본론, 아웃트로의 3단 구조로 원고를 구성합니다.
 - 브랜드 톤앤매너를 철저히 지킵니다.
 
-## 톤앤매너 가이드
-{tone_guide}
-
 ## 출력 규칙
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트를 포함하지 마세요.
 
 ```json
-{{
+{
   "title": "영상 제목",
   "sections": [
-    {{
+    {
       "heading": "섹션 제목 (예: 인트로)",
       "body": "원고 본문 텍스트",
       "visual_notes": "이 섹션에 어울리는 영상/이미지 연출 메모",
       "duration_seconds": 30
-    }}
+    }
   ],
   "estimated_duration_seconds": 600
-}}
+}
 ```
 
 ## 섹션 구성 가이드
 1. **인트로** (15-30초): 시청자의 관심을 즉시 끌어야 합니다. 질문, 놀라운 사실, 공감 유발.
 2. **본론** (여러 섹션): 주제를 깊이 있게 다룹니다. 각 섹션은 하나의 핵심 포인트를 전달합니다.
-3. **아웃트로** (15-30초): 핵심 요약 + 구독/좋아요 유도 + 다음 영상 예고.
-"""
+3. **아웃트로** (15-30초): 핵심 요약 + 구독/좋아요 유도 + 다음 영상 예고."""
 
 SCRIPT_USER_PROMPT = """\
 다음 콘텐츠 기획안을 바탕으로 YouTube 영상 원고를 작성해주세요.
@@ -86,10 +94,13 @@ def build_tone_guide(tone: ToneAndManner) -> str:
     return "\n".join(line for line in lines if line)
 
 
-def build_system_prompt(tone: ToneAndManner) -> str:
-    """톤앤매너가 주입된 시스템 프롬프트를 생성합니다."""
+def build_system_prompt(tone: ToneAndManner) -> SystemMessage:
+    """톤앤매너가 주입된 시스템 메시지를 생성합니다 (정적 베이스 캐시)."""
     tone_guide = build_tone_guide(tone)
-    return SCRIPT_SYSTEM_PROMPT.format(tone_guide=tone_guide)
+    return SystemMessage(content=[
+        {"type": "text", "text": _SCRIPT_SYSTEM_BASE, "cache_control": _CACHE_CONTROL},
+        {"type": "text", "text": f"\n\n## 톤앤매너 가이드\n{tone_guide}"},
+    ])
 
 
 def build_user_prompt(
@@ -139,35 +150,31 @@ def build_revision_user_prompt(
 
 
 # ============================================
-# Strategist 프롬프트
+# Strategist 프롬프트 (동적 - 톤가이드 주입)
 # ============================================
 
-STRATEGIST_SYSTEM_PROMPT = """\
+_STRATEGIST_SYSTEM_BASE = """\
 당신은 유튜브 콘텐츠 기획자입니다.
 주어진 주제와 기획 정보를 바탕으로 영상의 전체 아웃라인을 기획합니다.
-
-## 톤앤매너 가이드
-{tone_guide}
 
 ## 출력 규칙
 반드시 아래 JSON 형식으로만 응답하세요.
 
 ```json
-{{
+{
   "opening_hook": "시청자가 3초 안에 관심을 가질 훅 멘트 방향",
   "opening_promise": "시청자가 얻을 핵심 가치",
   "main_points": [
-    {{
+    {
       "title": "첫 번째 포인트 소제목",
       "key_message": "핵심 메시지",
       "example": "예시 또는 근거"
-    }}
+    }
   ],
   "closing_summary": "핵심 내용 3줄 요약",
   "closing_action": "시청자 액션 아이템 1개"
-}}
-```
-"""
+}
+```"""
 
 STRATEGIST_USER_PROMPT = """\
 다음 정보를 바탕으로 YouTube 영상 아웃라인을 기획해주세요.
@@ -182,9 +189,17 @@ JSON 형식으로 아웃라인을 작성하세요.
 """
 
 
-def build_strategist_system_prompt(tone: ToneAndManner) -> str:
-    """Strategist 시스템 프롬프트를 생성합니다."""
-    return STRATEGIST_SYSTEM_PROMPT.format(tone_guide=build_tone_guide(tone))
+def build_strategist_system_prompt(tone: ToneAndManner) -> SystemMessage:
+    """Strategist 시스템 메시지를 생성합니다 (정적 베이스 캐시)."""
+    tone_guide = build_tone_guide(tone)
+    return SystemMessage(content=[
+        {
+            "type": "text",
+            "text": _STRATEGIST_SYSTEM_BASE,
+            "cache_control": _CACHE_CONTROL,
+        },
+        {"type": "text", "text": f"\n\n## 톤앤매너 가이드\n{tone_guide}"},
+    ])
 
 
 def build_strategist_user_prompt(
@@ -207,10 +222,10 @@ def build_strategist_user_prompt(
 
 
 # ============================================
-# Auditor 프롬프트
+# Auditor 프롬프트 (100% 정적 - 전체 캐시)
 # ============================================
 
-AUDITOR_SYSTEM_PROMPT = """\
+_AUDITOR_SYSTEM_TEXT = """\
 당신은 유튜브 대본 검수 전문가입니다.
 작성된 대본이 가이드라인을 준수하는지 엄격하게 검사합니다.
 
@@ -224,7 +239,7 @@ AUDITOR_SYSTEM_PROMPT = """\
 반드시 아래 JSON 형식으로만 응답하세요.
 
 ```json
-{{
+{
   "passed": true,
   "structure_ok": true,
   "style_ok": true,
@@ -232,11 +247,10 @@ AUDITOR_SYSTEM_PROMPT = """\
   "retention_hooks_ok": true,
   "feedback": "전체 평가 요약",
   "revision_instructions": []
-}}
+}
 ```
 
-passed가 false인 경우 revision_instructions에 구체적인 수정 지시를 작성하세요.
-"""
+passed가 false인 경우 revision_instructions에 구체적인 수정 지시를 작성하세요."""
 
 AUDITOR_USER_PROMPT = """\
 아래 대본을 가이드라인에 따라 검수해주세요.
@@ -248,8 +262,11 @@ JSON 형식으로 검수 결과를 반환하세요.
 """
 
 
-def build_auditor_system_prompt() -> str:
-    return AUDITOR_SYSTEM_PROMPT
+def build_auditor_system_prompt() -> SystemMessage:
+    """Auditor 시스템 메시지를 생성합니다 (100% 정적, 전체 캐시)."""
+    return SystemMessage(content=[
+        {"type": "text", "text": _AUDITOR_SYSTEM_TEXT, "cache_control": _CACHE_CONTROL},
+    ])
 
 
 def build_auditor_user_prompt(draft_script: str, guidelines: str = "") -> str:
@@ -262,10 +279,10 @@ def build_auditor_user_prompt(draft_script: str, guidelines: str = "") -> str:
 
 
 # ============================================
-# Editor 프롬프트
+# Editor 프롬프트 (100% 정적 - 전체 캐시)
 # ============================================
 
-EDITOR_SYSTEM_PROMPT = """\
+_EDITOR_SYSTEM_TEXT = """\
 당신은 유튜브 대본 최종 편집자입니다.
 검수를 통과한 대본을 자연스럽고 말맛 있게 다듬습니다.
 
@@ -275,8 +292,7 @@ EDITOR_SYSTEM_PROMPT = """\
 - 섹션 구분을 명확히 유지합니다
 
 ## 출력
-다듬어진 최종 원고를 원본과 동일한 JSON 형식으로 반환하세요.
-"""
+다듬어진 최종 원고를 원본과 동일한 JSON 형식으로 반환하세요."""
 
 EDITOR_USER_PROMPT = """\
 아래 대본을 자연스럽게 다듬어 최종 버전을 작성해주세요.
@@ -288,8 +304,11 @@ EDITOR_USER_PROMPT = """\
 """
 
 
-def build_editor_system_prompt() -> str:
-    return EDITOR_SYSTEM_PROMPT
+def build_editor_system_prompt() -> SystemMessage:
+    """Editor 시스템 메시지를 생성합니다 (100% 정적, 전체 캐시)."""
+    return SystemMessage(content=[
+        {"type": "text", "text": _EDITOR_SYSTEM_TEXT, "cache_control": _CACHE_CONTROL},
+    ])
 
 
 def build_editor_user_prompt(draft_script: str, guidelines: str = "") -> str:

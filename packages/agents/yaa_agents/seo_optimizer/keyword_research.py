@@ -52,8 +52,9 @@ YouTube 검색 최적화에 효과적인 키워드를 추천합니다.
 class KeywordResearcher:
     """YouTube SEO/AEO/GEO 키워드 리서치를 수행합니다."""
 
-    def __init__(self, llm: BaseChatModel) -> None:
+    def __init__(self, llm: BaseChatModel, *, use_batch: bool = False) -> None:
         self._llm = llm
+        self._use_batch = use_batch
 
     async def research(
         self,
@@ -74,17 +75,36 @@ class KeywordResearcher:
         safe_keywords = existing_keywords or []
         user_prompt = self._build_prompt(topic, brand_guide, safe_keywords)
 
+        try:
+            if self._use_batch:
+                content = await self._invoke_batch(user_prompt)
+            else:
+                content = await self._invoke_realtime(user_prompt)
+            return self._parse_response(content)
+        except Exception as error:
+            logger.error("키워드 리서치 LLM 호출 실패: %s", error)
+            raise RuntimeError(f"키워드 리서치 중 오류가 발생했습니다: {error}") from error
+
+    async def _invoke_realtime(self, user_prompt: str) -> str:
+        """실시간 LLM 호출."""
         messages = [
             SystemMessage(content=KEYWORD_RESEARCH_SYSTEM_PROMPT),
             HumanMessage(content=user_prompt),
         ]
+        response = await self._llm.ainvoke(messages)
+        return response.content
 
-        try:
-            response = await self._llm.ainvoke(messages)
-            return self._parse_response(response.content)
-        except Exception as error:
-            logger.error("키워드 리서치 LLM 호출 실패: %s", error)
-            raise RuntimeError(f"키워드 리서치 중 오류가 발생했습니다: {error}") from error
+    async def _invoke_batch(self, user_prompt: str) -> str:
+        """OpenAI Batch API 호출 (50% 비용 절감)."""
+        from yaa_core.shared.batch_openai import batch_chat_completion
+        from yaa_core.shared.llm_clients import get_settings
+
+        settings = get_settings()
+        return await batch_chat_completion(
+            system_prompt=KEYWORD_RESEARCH_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            api_key=settings.openai_api_key,
+        )
 
     def _build_prompt(
         self,

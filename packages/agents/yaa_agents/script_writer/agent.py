@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage
 from yaa_core.shared.llm_utils import extract_json_from_response
 from yaa_core.shared.models import (
     BrandGuide,
@@ -62,7 +62,7 @@ class ScriptWriterAgent:
         """
         self._validate_inputs(plan, brand_guide)
 
-        system_prompt = build_system_prompt(brand_guide.tone_and_manner)
+        system_msg = build_system_prompt(brand_guide.tone_and_manner)
 
         if audit_feedback:
             from yaa_agents.script_writer.prompts import build_revision_user_prompt
@@ -84,19 +84,16 @@ class ScriptWriterAgent:
                 references=references,
             )
 
-        raw_response = await self._invoke_llm(system_prompt, user_prompt)
+        raw_response = await self._invoke_llm(system_msg, user_prompt)
         return self._parse_response(raw_response)
 
     async def _invoke_llm(
         self,
-        system_prompt: str,
+        system_msg: BaseMessage,
         user_prompt: str,
     ) -> str:
         """LLM을 호출하여 원시 응답 텍스트를 반환합니다."""
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ]
+        messages = [system_msg, HumanMessage(content=user_prompt)]
 
         try:
             response = await self._llm.ainvoke(messages)

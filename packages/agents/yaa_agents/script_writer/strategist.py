@@ -10,7 +10,7 @@ import json
 import logging
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from yaa_core.shared.llm_utils import extract_json_from_response
 from yaa_core.shared.models import (
     ContentPlan,
@@ -49,7 +49,7 @@ class StrategistAgent:
         Returns:
             ScriptOutline 모델
         """
-        system_prompt = build_strategist_system_prompt(tone)
+        system_msg = build_strategist_system_prompt(tone)
         user_prompt = build_strategist_user_prompt(
             topic=plan.topic,
             content_type=plan.content_type,
@@ -58,10 +58,7 @@ class StrategistAgent:
             guidelines=guidelines,
         )
 
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ]
+        messages = [system_msg, HumanMessage(content=user_prompt)]
 
         try:
             response = await self._llm.ainvoke(messages)
