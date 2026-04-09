@@ -80,9 +80,7 @@ async def batch_chat_completion(
     jsonl_path: Path | None = None
     try:
         # 임시 파일 생성을 try 블록 안에서 수행하여 누수 방지 (#70)
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".jsonl", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
             f.write(json.dumps(request_body) + "\n")
             jsonl_path = Path(f.name)
 
@@ -106,10 +104,7 @@ async def batch_chat_completion(
             if batch.status == "completed":
                 break
             if batch.status in ("failed", "expired", "cancelled"):
-                raise RuntimeError(
-                    f"배치 실패: status={batch.status}, "
-                    f"errors={batch.errors}"
-                )
+                raise RuntimeError(f"배치 실패: status={batch.status}, errors={batch.errors}")
             await asyncio.sleep(_POLL_INTERVAL_SECONDS)
 
         if batch.status != "completed":
@@ -118,10 +113,7 @@ async def batch_chat_completion(
                 await client.batches.cancel(batch.id)
             except Exception:
                 pass
-            raise TimeoutError(
-                f"배치가 {timeout}초 내에 완료되지 않았습니다: "
-                f"batch_id={batch.id}"
-            )
+            raise TimeoutError(f"배치가 {timeout}초 내에 완료되지 않았습니다: batch_id={batch.id}")
 
         # 5. 결과 다운로드
         if not batch.output_file_id:

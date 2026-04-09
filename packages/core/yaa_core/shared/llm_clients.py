@@ -105,7 +105,10 @@ class UsageTrackingCallback(BaseCallbackHandler):
             cache_read = token_usage.get("cache_read_input_tokens", 0) or 0
 
             cost = calculate_cost(
-                self.provider, model, prompt_tokens, completion_tokens,
+                self.provider,
+                model,
+                prompt_tokens,
+                completion_tokens,
                 cache_creation_tokens=cache_creation,
                 cache_read_tokens=cache_read,
             )

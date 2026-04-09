@@ -310,9 +310,7 @@ class CompetitorVideoModel(Base):
     channel: Mapped[CompetitorChannelModel] = relationship(back_populates="videos")
 
     __table_args__ = (
-        UniqueConstraint(
-            "competitor_channel_id", "video_id", name="uq_competitor_video"
-        ),
+        UniqueConstraint("competitor_channel_id", "video_id", name="uq_competitor_video"),
     )
 
     @property

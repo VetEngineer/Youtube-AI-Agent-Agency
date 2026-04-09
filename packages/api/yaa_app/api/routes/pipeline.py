@@ -73,7 +73,9 @@ async def _execute_pipeline(
 
     try:
         agent_registry = _build_agent_registry(
-            settings, collector=collector, elevenlabs_api_key=workspace_elevenlabs_key,
+            settings,
+            collector=collector,
+            elevenlabs_api_key=workspace_elevenlabs_key,
         )
         pipeline = compile_pipeline(agent_registry)
         initial_state = create_initial_state(

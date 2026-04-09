@@ -141,14 +141,16 @@ def setup_metrics(app: FastAPI) -> None:
     app.add_middleware(PrometheusMiddleware)
 
     if _HAS_PROMETHEUS:
+        from fastapi import Depends
         from starlette.responses import Response as StarletteResponse
 
-        @app.get("/metrics", include_in_schema=False)
-        async def metrics_endpoint(request: Request) -> StarletteResponse:
-            """Prometheus 메트릭을 반환합니다 (API 키 인증 필요)."""
-            from yaa_app.api.dependencies import get_settings
+        from yaa_app.api.dependencies import get_settings
 
-            settings = get_settings()
+        @app.get("/metrics", include_in_schema=False)
+        async def metrics_endpoint(
+            request: Request, settings=Depends(get_settings)
+        ) -> StarletteResponse:
+            """Prometheus 메트릭을 반환합니다 (API 키 인증 필요)."""
             api_key = request.headers.get(settings.api_key_header, "")
             if not settings.disable_auth and not api_key:
                 return StarletteResponse(content="Unauthorized", status_code=401)

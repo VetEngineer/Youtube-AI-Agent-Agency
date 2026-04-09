@@ -446,9 +446,11 @@ class TestScriptWriterAgentGenerate:
 
         # 시스템 프롬프트에 톤앤매너 포함 확인 (content blocks)
         system_msg = messages[0]
-        system_text = "".join(
-            b["text"] for b in system_msg.content
-        ) if isinstance(system_msg.content, list) else system_msg.content
+        system_text = (
+            "".join(b["text"] for b in system_msg.content)
+            if isinstance(system_msg.content, list)
+            else system_msg.content
+        )
         assert "따뜻하지만 전문적인 수의사 친구" in system_text
 
         # 유저 프롬프트에 주제 포함 확인

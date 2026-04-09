@@ -97,10 +97,12 @@ def build_tone_guide(tone: ToneAndManner) -> str:
 def build_system_prompt(tone: ToneAndManner) -> SystemMessage:
     """톤앤매너가 주입된 시스템 메시지를 생성합니다 (정적 베이스 캐시)."""
     tone_guide = build_tone_guide(tone)
-    return SystemMessage(content=[
-        {"type": "text", "text": _SCRIPT_SYSTEM_BASE, "cache_control": _CACHE_CONTROL},
-        {"type": "text", "text": f"\n\n## 톤앤매너 가이드\n{tone_guide}"},
-    ])
+    return SystemMessage(
+        content=[
+            {"type": "text", "text": _SCRIPT_SYSTEM_BASE, "cache_control": _CACHE_CONTROL},
+            {"type": "text", "text": f"\n\n## 톤앤매너 가이드\n{tone_guide}"},
+        ]
+    )
 
 
 def build_user_prompt(
@@ -192,14 +194,16 @@ JSON 형식으로 아웃라인을 작성하세요.
 def build_strategist_system_prompt(tone: ToneAndManner) -> SystemMessage:
     """Strategist 시스템 메시지를 생성합니다 (정적 베이스 캐시)."""
     tone_guide = build_tone_guide(tone)
-    return SystemMessage(content=[
-        {
-            "type": "text",
-            "text": _STRATEGIST_SYSTEM_BASE,
-            "cache_control": _CACHE_CONTROL,
-        },
-        {"type": "text", "text": f"\n\n## 톤앤매너 가이드\n{tone_guide}"},
-    ])
+    return SystemMessage(
+        content=[
+            {
+                "type": "text",
+                "text": _STRATEGIST_SYSTEM_BASE,
+                "cache_control": _CACHE_CONTROL,
+            },
+            {"type": "text", "text": f"\n\n## 톤앤매너 가이드\n{tone_guide}"},
+        ]
+    )
 
 
 def build_strategist_user_prompt(
@@ -264,9 +268,11 @@ JSON 형식으로 검수 결과를 반환하세요.
 
 def build_auditor_system_prompt() -> SystemMessage:
     """Auditor 시스템 메시지를 생성합니다 (100% 정적, 전체 캐시)."""
-    return SystemMessage(content=[
-        {"type": "text", "text": _AUDITOR_SYSTEM_TEXT, "cache_control": _CACHE_CONTROL},
-    ])
+    return SystemMessage(
+        content=[
+            {"type": "text", "text": _AUDITOR_SYSTEM_TEXT, "cache_control": _CACHE_CONTROL},
+        ]
+    )
 
 
 def build_auditor_user_prompt(draft_script: str, guidelines: str = "") -> str:
@@ -306,9 +312,11 @@ EDITOR_USER_PROMPT = """\
 
 def build_editor_system_prompt() -> SystemMessage:
     """Editor 시스템 메시지를 생성합니다 (100% 정적, 전체 캐시)."""
-    return SystemMessage(content=[
-        {"type": "text", "text": _EDITOR_SYSTEM_TEXT, "cache_control": _CACHE_CONTROL},
-    ])
+    return SystemMessage(
+        content=[
+            {"type": "text", "text": _EDITOR_SYSTEM_TEXT, "cache_control": _CACHE_CONTROL},
+        ]
+    )
 
 
 def build_editor_user_prompt(draft_script: str, guidelines: str = "") -> str:
