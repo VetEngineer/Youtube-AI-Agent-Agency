@@ -105,3 +105,8 @@ def set_session_factory(factory: async_sessionmaker[AsyncSession] | None) -> Non
     """세션 팩토리를 설정합니다 (테스트용)."""
     global _async_session_factory
     _async_session_factory = factory
+
+
+def get_engine() -> AsyncEngine | None:
+    """현재 비동기 엔진을 반환합니다 (테스트 정리용)."""
+    return _async_engine
