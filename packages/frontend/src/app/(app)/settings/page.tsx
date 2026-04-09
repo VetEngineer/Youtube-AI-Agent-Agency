@@ -104,8 +104,8 @@ function ApiKeySection() {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <div>
-                    <h4 className="text-sm font-medium">API Keys</h4>
-                    <p className="text-sm text-muted-foreground">Manage access keys for the API.</p>
+                    <h4 className="text-sm font-medium text-balance">API Keys</h4>
+                    <p className="text-sm text-muted-foreground text-pretty">Manage access keys for the API.</p>
                 </div>
                 <Dialog open={isCreateOpen} onOpenChange={(open) => {
                     setIsCreateOpen(open);
@@ -133,7 +133,7 @@ function ApiKeySection() {
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg font-mono text-sm">
                                     <code className="flex-1 truncate">{createdKey}</code>
-                                    <Button variant="ghost" size="icon" onClick={handleCopy}>
+                                    <Button variant="ghost" size="icon" onClick={handleCopy} aria-label="API 키 복사">
                                         {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                                     </Button>
                                 </div>
@@ -335,8 +335,8 @@ function ChannelSection() {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <div>
-                    <h4 className="text-sm font-medium">Channels</h4>
-                    <p className="text-sm text-muted-foreground">Manage YouTube channel configurations.</p>
+                    <h4 className="text-sm font-medium text-balance">Channels</h4>
+                    <p className="text-sm text-muted-foreground text-pretty">Manage YouTube channel configurations.</p>
                 </div>
                 <Dialog open={isCreateOpen} onOpenChange={(open) => {
                     setIsCreateOpen(open);
@@ -436,6 +436,7 @@ function ChannelSection() {
                                     <Button
                                         variant="ghost"
                                         size="icon"
+                                        aria-label={`채널 편집: ${channel.name}`}
                                         onClick={() => setEditChannel({
                                             channel_id: channel.channel_id,
                                             name: channel.name,
@@ -448,6 +449,7 @@ function ChannelSection() {
                                         variant="ghost"
                                         size="icon"
                                         className="text-red-400 hover:text-red-500 hover:bg-red-500/10"
+                                        aria-label={`채널 삭제: ${channel.channel_id}`}
                                         onClick={() => setDeleteChannelId(channel.channel_id)}
                                     >
                                         <Trash2 className="h-4 w-4" />
@@ -563,8 +565,8 @@ function AuthSection() {
     return (
         <div className="space-y-4">
             <div>
-                <h4 className="text-sm font-medium">Authentication</h4>
-                <p className="text-sm text-muted-foreground">Configure your API key for accessing protected endpoints.</p>
+                <h4 className="text-sm font-medium text-balance">Authentication</h4>
+                <p className="text-sm text-muted-foreground text-pretty">Configure your API key for accessing protected endpoints.</p>
             </div>
 
             <div className="border rounded-lg p-4 space-y-4">
@@ -747,8 +749,8 @@ function PlansSection() {
     return (
         <div className="space-y-6">
             <div>
-                <h4 className="text-sm font-medium">Plans & Usage</h4>
-                <p className="text-sm text-muted-foreground">
+                <h4 className="text-sm font-medium text-balance">Plans & Usage</h4>
+                <p className="text-sm text-muted-foreground text-pretty">
                     View your current plan and usage statistics.
                 </p>
             </div>
@@ -763,7 +765,7 @@ function PlansSection() {
             {/* 사용량 통계 */}
             {usage && (
                 <div className="rounded-lg border p-4 space-y-4">
-                    <h5 className="text-sm font-medium">Current Usage</h5>
+                    <h5 className="text-sm font-medium text-balance">Current Usage</h5>
                     <div className="space-y-3">
                         <div className="space-y-1.5">
                             <div className="flex items-center justify-between text-sm">
@@ -875,8 +877,8 @@ function IntegrationsSection() {
     return (
         <div className="space-y-6">
             <div>
-                <h4 className="text-sm font-medium">Integrations</h4>
-                <p className="text-sm text-muted-foreground">
+                <h4 className="text-sm font-medium text-balance">Integrations</h4>
+                <p className="text-sm text-muted-foreground text-pretty">
                     외부 서비스 연동에 필요한 API 키를 관리합니다.
                 </p>
             </div>
@@ -884,7 +886,7 @@ function IntegrationsSection() {
             {/* ElevenLabs TTS API */}
             <div className="rounded-lg border p-4 space-y-4">
                 <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-lg bg-purple-600/10 flex items-center justify-center">
+                    <div className="size-9 rounded-lg bg-purple-600/10 flex items-center justify-center">
                         <Key className="h-5 w-5 text-purple-500" />
                     </div>
                     <div>
@@ -916,6 +918,7 @@ function IntegrationsSection() {
                             variant="ghost"
                             size="sm"
                             className="text-destructive hover:text-destructive"
+                            aria-label="ElevenLabs API 키 삭제"
                             onClick={handleElRemove}
                             disabled={updateIntegrations.isPending}
                         >
@@ -981,7 +984,7 @@ function IntegrationsSection() {
             {/* YouTube Data API */}
             <div className="rounded-lg border p-4 space-y-4">
                 <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-lg bg-red-600/10 flex items-center justify-center">
+                    <div className="size-9 rounded-lg bg-red-600/10 flex items-center justify-center">
                         <Youtube className="h-5 w-5 text-red-500" />
                     </div>
                     <div>
@@ -1014,6 +1017,7 @@ function IntegrationsSection() {
                             variant="ghost"
                             size="sm"
                             className="text-destructive hover:text-destructive"
+                            aria-label="YouTube API 키 삭제"
                             onClick={handleRemove}
                             disabled={updateIntegrations.isPending}
                         >
@@ -1096,8 +1100,8 @@ export default function SettingsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h3 className="text-lg font-medium">프로필</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="text-lg font-medium text-balance">프로필</h3>
+                <p className="text-sm text-muted-foreground text-pretty">
                     API 관리, 채널 설정, 요금제를 관리합니다.
                 </p>
             </div>

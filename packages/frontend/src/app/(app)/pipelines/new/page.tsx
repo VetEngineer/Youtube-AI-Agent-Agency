@@ -72,9 +72,9 @@ export default function PipelineNewPage() {
     return (
         <div className="max-w-2xl mx-auto space-y-6">
             <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" asChild>
+                <Button variant="ghost" size="icon" asChild aria-label="대시보드로 돌아가기">
                     <Link href="/">
-                        <ArrowLeft className="h-4 w-4" />
+                        <ArrowLeft className="size-4" />
                     </Link>
                 </Button>
                 <div>
@@ -168,8 +168,8 @@ export default function PipelineNewPage() {
                             <Label htmlFor="brand_name">Brand Name (Optional)</Label>
                             <TooltipProvider delayDuration={200}>
                                 <Tooltip>
-                                    <TooltipTrigger type="button">
-                                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <TooltipTrigger type="button" aria-label="도움말">
+                                        <HelpCircle className="size-3.5 text-muted-foreground" />
                                     </TooltipTrigger>
                                     <TooltipContent side="right" className="max-w-[220px]">
                                         원고와 콘텐츠에 반영할 브랜드 이름입니다. 예: "TechReview"를 입력하면 해당 브랜드 스타일로 스크립트가 작성됩니다.
@@ -205,8 +205,8 @@ export default function PipelineNewPage() {
                                 </Label>
                                 <TooltipProvider delayDuration={200}>
                                     <Tooltip>
-                                        <TooltipTrigger type="button">
-                                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <TooltipTrigger type="button" aria-label="도움말">
+                                            <HelpCircle className="size-3.5 text-muted-foreground" />
                                         </TooltipTrigger>
                                         <TooltipContent side="right" className="max-w-[240px]">
                                             실제 AI 모델을 호출하지 않고 파이프라인 흐름을 시뮬레이션합니다. 비용 없이 설정이 올바른지 확인할 때 사용하세요.

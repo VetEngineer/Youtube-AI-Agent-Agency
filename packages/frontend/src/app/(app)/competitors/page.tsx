@@ -53,6 +53,16 @@ import {
     type CompetitorChannelInfo,
     type CompetitorVideoInfo,
 } from "@/hooks/use-competitors"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { ApiError } from "@/lib/api"
 
 function formatNumber(n: number): string {
@@ -103,7 +113,7 @@ function ChannelDetailModal({
             <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                 {isLoading && (
                     <div className="flex items-center justify-center py-20">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        <Loader2 className="size-8 animate-spin text-muted-foreground" />
                     </div>
                 )}
                 {data && (
@@ -114,7 +124,7 @@ function ChannelDetailModal({
                                     <img
                                         src={data.channel.thumbnail_url}
                                         alt={data.channel.name}
-                                        className="h-12 w-12 rounded-full object-cover"
+                                        className="size-12 rounded-full object-cover"
                                     />
                                 )}
                                 <div>
@@ -161,9 +171,9 @@ function ChannelDetailModal({
                                     disabled={refreshMutation.isPending}
                                 >
                                     {refreshMutation.isPending ? (
-                                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                        <Loader2 className="size-3 animate-spin mr-1" />
                                     ) : (
-                                        <RefreshCw className="h-3 w-3 mr-1" />
+                                        <RefreshCw className="size-3 mr-1" />
                                     )}
                                     데이터 갱신
                                 </Button>
@@ -179,19 +189,19 @@ function ChannelDetailModal({
                                             <TableRow>
                                                 <TableHead>제목</TableHead>
                                                 <TableHead className="w-[80px] text-right">
-                                                    <Eye className="h-3 w-3 inline mr-1" />
+                                                    <Eye className="size-3 inline mr-1" />
                                                     조회수
                                                 </TableHead>
                                                 <TableHead className="w-[80px] text-right">
-                                                    <ThumbsUp className="h-3 w-3 inline mr-1" />
+                                                    <ThumbsUp className="size-3 inline mr-1" />
                                                     좋아요
                                                 </TableHead>
                                                 <TableHead className="w-[80px] text-right">
-                                                    <MessageSquare className="h-3 w-3 inline mr-1" />
+                                                    <MessageSquare className="size-3 inline mr-1" />
                                                     댓글
                                                 </TableHead>
                                                 <TableHead className="w-[70px] text-right">
-                                                    <Clock className="h-3 w-3 inline mr-1" />
+                                                    <Clock className="size-3 inline mr-1" />
                                                     길이
                                                 </TableHead>
                                                 <TableHead className="w-[90px]">게시일</TableHead>
@@ -266,17 +276,17 @@ function CompetitorCard({
         <>
             <Card className="bg-card/50 backdrop-blur-sm border-primary/50 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <TrendingUp className="h-32 w-32" />
+                    <TrendingUp className="size-32" />
                 </div>
                 <CardHeader className="flex flex-row items-center gap-3 pb-2">
                     {competitor.thumbnail_url ? (
                         <img
                             src={competitor.thumbnail_url}
                             alt={competitor.name}
-                            className="h-12 w-12 rounded-full object-cover shrink-0"
+                            className="size-12 rounded-full object-cover shrink-0"
                         />
                     ) : (
-                        <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center text-lg font-bold shrink-0">
+                        <div className="size-12 rounded-full bg-primary/20 flex items-center justify-center text-lg font-bold shrink-0">
                             {competitor.name.charAt(0).toUpperCase()}
                         </div>
                     )}
@@ -328,23 +338,25 @@ function CompetitorCard({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="size-8"
+                        aria-label="채널 데이터 새로고침"
                         onClick={() => refreshMutation.mutate(competitor.id)}
                         disabled={refreshMutation.isPending}
                     >
                         {refreshMutation.isPending ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <Loader2 className="size-3 animate-spin" />
                         ) : (
-                            <RefreshCw className="h-3 w-3" />
+                            <RefreshCw className="size-3" />
                         )}
                     </Button>
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="size-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        aria-label="경쟁 채널 삭제"
                         onClick={() => onDelete(competitor.id)}
                     >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="size-3" />
                     </Button>
                 </CardFooter>
             </Card>
@@ -364,6 +376,7 @@ export default function CompetitorsPage() {
     const [addDialogOpen, setAddDialogOpen] = useState(false)
     const [channelIdInput, setChannelIdInput] = useState("")
     const [addError, setAddError] = useState<string | null>(null)
+    const [deleteCompetitorId, setDeleteCompetitorId] = useState<string | null>(null)
 
     const { data, isLoading, error } = useCompetitors()
     const { data: integrations } = useIntegrations()
@@ -392,9 +405,10 @@ export default function CompetitorsPage() {
         }
     }
 
-    const handleDelete = async (competitorId: string) => {
-        if (!confirm("이 경쟁 채널을 제거하시겠습니까?")) return
-        deleteMutation.mutate(competitorId)
+    const handleDelete = async () => {
+        if (!deleteCompetitorId) return
+        await deleteMutation.mutateAsync(deleteCompetitorId)
+        setDeleteCompetitorId(null)
     }
 
     return (
@@ -410,7 +424,7 @@ export default function CompetitorsPage() {
                 <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
                     <DialogTrigger asChild>
                         <Button>
-                            <Plus className="mr-2 h-4 w-4" /> 채널 추가
+                            <Plus className="mr-2 size-4" /> 채널 추가
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -451,7 +465,7 @@ export default function CompetitorsPage() {
                                 disabled={addMutation.isPending || !channelIdInput.trim()}
                             >
                                 {addMutation.isPending && (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    <Loader2 className="mr-2 size-4 animate-spin" />
                                 )}
                                 추가
                             </Button>
@@ -463,13 +477,13 @@ export default function CompetitorsPage() {
             {/* YouTube API Key 미설정 경고 */}
             {integrations && !integrations.youtube_api_key_set && (
                 <div className="flex items-center gap-3 rounded-md border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-400">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <AlertCircle className="size-4 shrink-0" />
                     <span>
                         YouTube API Key가 설정되지 않았습니다. 채널 등록 및 데이터 수집을 위해 먼저 API Key를 입력하세요.
                     </span>
                     <Button variant="outline" size="sm" className="ml-auto shrink-0 border-yellow-500/40 text-yellow-400 hover:text-yellow-300" asChild>
                         <Link href="/settings?tab=integrations">
-                            <Settings className="h-3 w-3 mr-1" />
+                            <Settings className="size-3 mr-1" />
                             설정하기
                         </Link>
                     </Button>
@@ -479,14 +493,14 @@ export default function CompetitorsPage() {
             {/* 로딩 */}
             {isLoading && (
                 <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <Loader2 className="size-8 animate-spin text-muted-foreground" />
                 </div>
             )}
 
             {/* 에러 */}
             {error && (
                 <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <AlertCircle className="size-4 shrink-0" />
                     경쟁 채널을 불러오지 못했습니다.
                 </div>
             )}
@@ -494,7 +508,7 @@ export default function CompetitorsPage() {
             {/* 빈 상태 */}
             {!isLoading && !error && data?.competitors.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                    <TrendingUp className="mb-4 h-12 w-12 opacity-30" />
+                    <TrendingUp className="mb-4 size-12 opacity-30" />
                     <p className="text-lg font-medium">등록된 경쟁 채널이 없습니다</p>
                     <p className="text-sm mt-1">
                         채널 추가 버튼으로 경쟁 채널을 등록하세요.
@@ -509,11 +523,28 @@ export default function CompetitorsPage() {
                         <CompetitorCard
                             key={competitor.id}
                             competitor={competitor}
-                            onDelete={handleDelete}
+                            onDelete={setDeleteCompetitorId}
                         />
                     ))}
                 </div>
             )}
+
+            <AlertDialog open={!!deleteCompetitorId} onOpenChange={(open) => !open && setDeleteCompetitorId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>경쟁 채널을 삭제하시겠습니까?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            이 작업은 되돌릴 수 없습니다. 수집된 영상 데이터도 함께 삭제됩니다.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>취소</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600">
+                            삭제
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }
