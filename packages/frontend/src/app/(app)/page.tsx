@@ -59,7 +59,7 @@ export default function Home() {
             <h3 className="text-lg font-semibold">API 키가 설정되지 않았습니다</h3>
             <p className="text-sm text-muted-foreground mt-1">대시보드를 사용하려면 먼저 API 키를 설정해 주세요.</p>
             <Button asChild className="mt-4">
-              <Link href="/settings">API 키 설정하기</Link>
+              <Link href="/settings?tab=api-keys">API 키 설정하기</Link>
             </Button>
           </>
         ) : (

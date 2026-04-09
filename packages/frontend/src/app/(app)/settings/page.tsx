@@ -1095,19 +1095,19 @@ export default function SettingsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h3 className="text-lg font-medium">Settings</h3>
+                <h3 className="text-lg font-medium">프로필</h3>
                 <p className="text-sm text-muted-foreground">
-                    Manage your API keys, channels, and authentication.
+                    API 관리, 채널 설정, 요금제를 관리합니다.
                 </p>
             </div>
 
             <Tabs defaultValue={defaultTab} className="space-y-4">
                 <TabsList>
-                    <TabsTrigger value="auth">Authentication</TabsTrigger>
-                    <TabsTrigger value="api-keys">API Keys</TabsTrigger>
-                    <TabsTrigger value="channels">Channels</TabsTrigger>
-                    <TabsTrigger value="integrations">Integrations</TabsTrigger>
-                    <TabsTrigger value="plans">Plans</TabsTrigger>
+                    <TabsTrigger value="auth">인증</TabsTrigger>
+                    <TabsTrigger value="api-keys">API 관리</TabsTrigger>
+                    <TabsTrigger value="channels">채널</TabsTrigger>
+                    <TabsTrigger value="integrations">연동</TabsTrigger>
+                    <TabsTrigger value="plans">요금제</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="auth" className="rounded-xl border bg-card text-card-foreground shadow p-6">

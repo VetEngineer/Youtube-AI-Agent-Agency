@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Home, Settings, Youtube, Activity, BookOpen, Rocket, TrendingUp, LogOut, ChevronUp, User } from "lucide-react";
+import { Home, Youtube, Activity, BookOpen, Rocket, TrendingUp, LogOut, ChevronUp, User, UserCircle } from "lucide-react";
 
 import {
   Sidebar,
@@ -56,10 +56,10 @@ const items = [
     tooltip: "경쟁 채널 업로드 현황과 영상 성과를 모니터링합니다",
   },
   {
-    title: "Settings",
+    title: "프로필",
     url: "/settings",
-    icon: Settings,
-    tooltip: "API 키, 요금제, 계정 설정을 변경합니다",
+    icon: UserCircle,
+    tooltip: "API 관리, 요금제, 계정 설정을 변경합니다",
   },
 ];
 
@@ -188,7 +188,7 @@ export function AppSidebar() {
                   <DropdownMenuItem asChild>
                     <Link href="/settings" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
-                      계정 설정
+                      프로필
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
