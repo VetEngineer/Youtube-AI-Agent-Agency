@@ -112,8 +112,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         provider_account_id: account?.providerAccountId,
                     }),
                 });
-            } catch {
-                // 백엔드 연결 실패 시에도 로그인 허용 (오프라인 개발)
+            } catch (err) {
+                // 프로덕션에서 백엔드 연결 실패 시 경고 로그
+                console.warn("Backend user sync failed:", err);
             }
 
             return true;

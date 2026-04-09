@@ -45,7 +45,13 @@ class EditorAgent:
 
         try:
             response = await self._llm.ainvoke(messages)
-            return self._apply_polish(script, response.content)
+            content = response.content
+            if isinstance(content, list):
+                content = "".join(
+                    block.get("text", "") if isinstance(block, dict) else str(block)
+                    for block in content
+                )
+            return self._apply_polish(script, content)
         except Exception as error:
             logger.error("EditorAgent LLM 호출 실패: %s", error)
             # 편집 실패 시 원본 반환 (편집은 필수가 아님)

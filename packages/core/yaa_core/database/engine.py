@@ -6,13 +6,19 @@ import logging
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from yaa_core.database.models import Base
 
 logger = logging.getLogger(__name__)
 
 _async_session_factory: async_sessionmaker[AsyncSession] | None = None
+_async_engine: AsyncEngine | None = None
 
 
 def create_engine_from_url(database_url: str) -> async_sessionmaker[AsyncSession]:
@@ -26,6 +32,8 @@ def create_engine_from_url(database_url: str) -> async_sessionmaker[AsyncSession
     Returns:
         async_sessionmaker 인스턴스
     """
+    global _async_engine
+
     connect_args = {}
     if database_url.startswith("sqlite"):
         connect_args = {"check_same_thread": False}
@@ -39,6 +47,7 @@ def create_engine_from_url(database_url: str) -> async_sessionmaker[AsyncSession
         pool_pre_ping=True,
         connect_args=connect_args,
     )
+    _async_engine = engine
 
     return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -63,7 +72,7 @@ async def init_db(database_url: str) -> async_sessionmaker[AsyncSession]:
             Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
     session_factory = create_engine_from_url(database_url)
-    engine = session_factory.kw["bind"]
+    engine = _async_engine
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

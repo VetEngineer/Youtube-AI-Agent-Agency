@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 
 export interface ApiKey {
     key_id: string;
@@ -38,8 +38,7 @@ export function useApiKeys() {
         queryFn: () => api.get<ApiKeysResponse>('/admin/api-keys'),
         retry: (failureCount, error) => {
             // Don't retry on 401/403
-            if (error instanceof Error && error.message.includes('401')) return false;
-            if (error instanceof Error && error.message.includes('403')) return false;
+            if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false;
             return failureCount < 2;
         },
     });

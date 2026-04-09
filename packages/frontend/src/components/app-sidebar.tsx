@@ -194,7 +194,12 @@ export function AppSidebar() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive cursor-pointer"
-                    onClick={() => signOut({ callbackUrl: "/login" })}
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        window.sessionStorage.removeItem("api_key");
+                      }
+                      signOut({ callbackUrl: "/login" });
+                    }}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     로그아웃

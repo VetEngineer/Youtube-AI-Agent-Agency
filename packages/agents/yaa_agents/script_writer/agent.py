@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from yaa_core.shared.llm_utils import extract_json_from_response
 from yaa_core.shared.models import (
     BrandGuide,
@@ -43,6 +43,7 @@ class ScriptWriterAgent:
         guidelines: str = "",
         references: str = "",
         audit_feedback: str = "",
+        previous_draft: str = "",
     ) -> Script:
         """콘텐츠 기획안과 브랜드 가이드를 기반으로 원고를 생성합니다.
 
@@ -68,7 +69,7 @@ class ScriptWriterAgent:
             from yaa_agents.script_writer.prompts import build_revision_user_prompt
 
             user_prompt = build_revision_user_prompt(
-                draft_script="(이전 초안은 피드백 참고)",
+                draft_script=previous_draft or "(이전 초안 없음)",
                 audit_feedback=audit_feedback,
                 guidelines=guidelines,
                 references=references,
@@ -87,17 +88,34 @@ class ScriptWriterAgent:
         raw_response = await self._invoke_llm(system_msg, user_prompt)
         return self._parse_response(raw_response)
 
+    def _normalize_system_msg(self, system_msg: BaseMessage) -> BaseMessage:
+        """비-Anthropic LLM에서 cache_control 등 확장 필드를 제거합니다."""
+        is_anthropic = type(self._llm).__name__.lower().startswith("chatanthropic")
+        if is_anthropic or not isinstance(system_msg.content, list):
+            return system_msg
+        text = "".join(
+            block.get("text", "") if isinstance(block, dict) else str(block)
+            for block in system_msg.content
+        )
+        return SystemMessage(content=text)
+
     async def _invoke_llm(
         self,
         system_msg: BaseMessage,
         user_prompt: str,
     ) -> str:
         """LLM을 호출하여 원시 응답 텍스트를 반환합니다."""
-        messages = [system_msg, HumanMessage(content=user_prompt)]
+        messages = [self._normalize_system_msg(system_msg), HumanMessage(content=user_prompt)]
 
         try:
             response = await self._llm.ainvoke(messages)
-            return response.content
+            content = response.content
+            if isinstance(content, list):
+                return "".join(
+                    block.get("text", "") if isinstance(block, dict) else str(block)
+                    for block in content
+                )
+            return content
         except Exception as error:
             logger.error("LLM 호출 실패: %s", error)
             raise RuntimeError(f"원고 생성 중 LLM 호출에 실패했습니다: {error}") from error

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, API_BASE_URL, getStoredApiKey } from '@/lib/api';
 
 export interface PipelineRunDetail {
     run_id: string;
@@ -111,6 +111,7 @@ export function useRetryPipeline() {
             ),
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['pipeline', 'runs'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
             router.push(`/pipelines/${data.run_id}`);
         },
     });
@@ -123,7 +124,10 @@ export function usePipelineSSE(runId: string) {
     useEffect(() => {
         if (!runId) return;
 
-        const es = new EventSource(`/api/v1/pipeline/runs/${runId}/stream`);
+        // SSE는 커스텀 헤더 미지원 → API 키를 쿼리 파라미터로 전달 (#71)
+        const apiKey = getStoredApiKey();
+        const params = apiKey ? `?api_key=${encodeURIComponent(apiKey)}` : '';
+        const es = new EventSource(`${API_BASE_URL}/pipeline/runs/${runId}/stream${params}`);
         esRef.current = es;
 
         es.onmessage = (event) => {
@@ -146,6 +150,7 @@ export function usePipelineSSE(runId: string) {
 
         return () => {
             es.close();
+            esRef.current = null;
         };
     }, [runId, queryClient]);
 

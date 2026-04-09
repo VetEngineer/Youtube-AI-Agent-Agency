@@ -233,7 +233,7 @@ export default function PipelineDetailPage() {
                         <h3 className="font-semibold mb-4">Results</h3>
                         {pipeline.result ? (
                             <div className="space-y-4">
-                                {pipeline.result.video_url && (
+                                {pipeline.result.video_url && /^https?:\/\//i.test(pipeline.result.video_url) && (
                                     <a
                                         href={pipeline.result.video_url}
                                         target="_blank"

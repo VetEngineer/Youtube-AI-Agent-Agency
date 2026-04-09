@@ -118,8 +118,8 @@ async def add_competitor(
         channel_info = await collector.fetch_channel_info(body.youtube_channel_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    except RuntimeError as exc:
-        raise HTTPException(status_code=502, detail=f"YouTube API 오류: {exc}")
+    except RuntimeError:
+        raise HTTPException(status_code=502, detail="YouTube API 연결에 실패했습니다.")
 
     repo = CompetitorRepository(session)
     competitor_id = str(uuid.uuid4())

@@ -305,6 +305,7 @@ async def cancel_pipeline_run(
         raise HTTPException(status_code=400, detail=f"취소할 수 없는 상태입니다: {run.status}")
 
     await repo.update_status(run_id, status="cancelled")
+    await session.commit()
 
     return {"run_id": run_id, "status": "cancelled"}
 

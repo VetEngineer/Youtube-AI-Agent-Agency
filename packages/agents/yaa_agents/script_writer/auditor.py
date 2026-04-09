@@ -45,7 +45,13 @@ class AuditorAgent:
 
         try:
             response = await self._llm.ainvoke(messages)
-            return self._parse_response(response.content)
+            content = response.content
+            if isinstance(content, list):
+                content = "".join(
+                    block.get("text", "") if isinstance(block, dict) else str(block)
+                    for block in content
+                )
+            return self._parse_response(content)
         except Exception as error:
             logger.error("AuditorAgent LLM 호출 실패: %s", error)
             # 호출 실패 시 FAIL로 처리하여 파이프라인이 계속 진행하도록 함
@@ -60,10 +66,11 @@ class AuditorAgent:
         try:
             data = json.loads(json_str)
         except (json.JSONDecodeError, TypeError) as e:
-            logger.warning("Auditor JSON 파싱 실패, PASS로 fallback: %s", e)
-            # JSON 파싱 실패 시 원문에서 PASS 여부를 판단
-            passed = "passed" in raw.lower() and "false" not in raw.lower()
-            return AuditResult(passed=passed, feedback=raw[:500])
+            logger.warning("Auditor JSON 파싱 실패, FAIL로 처리: %s", e)
+            return AuditResult(
+                passed=False,
+                feedback=f"JSON 파싱 실패 — 수동 검토 필요. 원문: {raw[:500]}",
+            )
 
         return AuditResult(
             passed=bool(data.get("passed", False)),

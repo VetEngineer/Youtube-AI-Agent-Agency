@@ -62,8 +62,8 @@ function ApiKeySection() {
             });
             setCreatedKey(result.key);
             setNewKeyData({ name: '', scopes: ['read'], expires_days: 90 });
-        } catch (err) {
-            console.error('Failed to create API key:', err);
+        } catch {
+            // mutation error is handled by React Query
         }
     };
 
@@ -80,8 +80,8 @@ function ApiKeySection() {
             try {
                 await deleteApiKey.mutateAsync(deleteKeyId);
                 setDeleteKeyId(null);
-            } catch (err) {
-                console.error('Failed to delete API key:', err);
+            } catch {
+                // mutation error is handled by React Query
             }
         }
     };
@@ -228,6 +228,7 @@ function ApiKeySection() {
                                     size="icon"
                                     className="text-red-400 hover:text-red-500 hover:bg-red-500/10"
                                     onClick={() => setDeleteKeyId(key.key_id)}
+                                    aria-label={`API 키 삭제: ${key.name}`}
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -306,8 +307,8 @@ function ChannelSection() {
                 data: { name: editChannel.name, category: editChannel.category },
             });
             setEditChannel(null);
-        } catch (err) {
-            console.error('Failed to update channel:', err);
+        } catch {
+            // mutation error is handled by React Query
         }
     };
 
@@ -316,8 +317,8 @@ function ChannelSection() {
         try {
             await deleteChannel.mutateAsync(deleteChannelId);
             setDeleteChannelId(null);
-        } catch (err) {
-            console.error('Failed to delete channel:', err);
+        } catch {
+            // mutation error is handled by React Query
         }
     };
 

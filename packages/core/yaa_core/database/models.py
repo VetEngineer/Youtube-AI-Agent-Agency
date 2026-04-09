@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -62,8 +62,8 @@ class WorkspaceModel(Base):
     plan: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
     pipeline_quota: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     channel_quota: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    youtube_api_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    elevenlabs_api_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    youtube_api_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    elevenlabs_api_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     owner: Mapped[UserModel] = relationship(back_populates="workspaces", lazy="selectin")
@@ -309,6 +309,12 @@ class CompetitorVideoModel(Base):
 
     channel: Mapped[CompetitorChannelModel] = relationship(back_populates="videos")
 
+    __table_args__ = (
+        UniqueConstraint(
+            "competitor_channel_id", "video_id", name="uq_competitor_video"
+        ),
+    )
+
     @property
     def tags(self) -> list[str]:
         return json.loads(self.tags_json) if self.tags_json else []
@@ -347,9 +353,12 @@ class OAuthTokenModel(Base):
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        unique=True,
     )
     provider: Mapped[str] = mapped_column(String(20), nullable=False, default="youtube")
+
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "provider", name="uq_oauth_tokens_ws_provider"),
+    )
     token_json: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(

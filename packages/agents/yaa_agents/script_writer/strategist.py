@@ -62,7 +62,13 @@ class StrategistAgent:
 
         try:
             response = await self._llm.ainvoke(messages)
-            return self._parse_response(response.content)
+            content = response.content
+            if isinstance(content, list):
+                content = "".join(
+                    block.get("text", "") if isinstance(block, dict) else str(block)
+                    for block in content
+                )
+            return self._parse_response(content)
         except Exception as error:
             logger.error("StrategistAgent LLM 호출 실패: %s", error)
             raise RuntimeError(f"아웃라인 생성 중 LLM 호출에 실패했습니다: {error}") from error
