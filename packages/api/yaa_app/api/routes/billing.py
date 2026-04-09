@@ -468,7 +468,8 @@ def _require_toss_checkout_config(settings: AppSettings) -> None:
 
 def _build_toss_order_id(workspace_id: str, plan: str) -> str:
     """Toss 주문 ID를 생성합니다."""
-    return f"{_TOSS_ORDER_PREFIX}-{plan}-{workspace_id[:8]}-{uuid.uuid4().hex[:8]}"
+    ws_compact = workspace_id.replace("-", "")
+    return f"{_TOSS_ORDER_PREFIX}-{plan}-{ws_compact}-{uuid.uuid4().hex[:8]}"
 
 
 def _extract_toss_plan(order_id: str) -> str:
@@ -492,17 +493,18 @@ def _extract_toss_plan(order_id: str) -> str:
 def _verify_toss_order_ownership(order_id: str, workspace_id: str) -> None:
     """Toss 주문 ID가 현재 인증된 워크스페이스에서 발급된 것인지 검증합니다.
 
-    주문 ID 형식: yaa-{plan}-{workspace_id[:8]}-{random}
+    주문 ID 형식: yaa-{plan}-{workspace_id_compact}-{random}
     """
     parts = order_id.split("-")
-    # 최소 4개 파트: prefix, plan, ws_prefix, random
+    # 최소 4개 파트: prefix, plan, ws_compact, random
     if len(parts) < 4 or parts[0] != _TOSS_ORDER_PREFIX:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="유효하지 않은 주문 ID입니다.",
         )
-    embedded_ws_prefix = parts[2]
-    if not workspace_id.startswith(embedded_ws_prefix):
+    embedded_ws = parts[2]
+    ws_compact = workspace_id.replace("-", "")
+    if embedded_ws != ws_compact:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="주문 ID가 현재 워크스페이스에서 발급된 것이 아닙니다.",
@@ -632,7 +634,7 @@ async def confirm_toss_payment(
 
     # 멱등성 처리: 이미 승인된 payment_key인지 확인
     sub_repo_check = SubscriptionRepository(session)
-    existing_payment = await sub_repo_check.get_by_stripe_customer(body.payment_key)
+    existing_payment = await sub_repo_check.get_by_stripe_subscription(body.payment_key)
     if existing_payment and existing_payment.status == "active":
         logger.info(
             "Toss 결제 중복 요청 (이미 처리됨): payment_key=%s workspace=%s",

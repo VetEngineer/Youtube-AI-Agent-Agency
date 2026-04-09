@@ -29,6 +29,10 @@ def encrypt_value(plaintext: str) -> str:
     """평문을 암호화합니다. 키가 없으면 원문 반환."""
     key = _get_fernet_key()
     if not key:
+        logger.error(
+            "ENCRYPTION_KEY 미설정: API 키가 평문으로 저장됩니다. "
+            "프로덕션에서는 반드시 ENCRYPTION_KEY를 설정하세요."
+        )
         return plaintext
     try:
         from cryptography.fernet import Fernet

@@ -125,13 +125,18 @@ class ChannelRegistry:
         self._workspace_id = workspace_id
         self._settings_cache: dict[str, ChannelSettings] = {}
         self._brand_guide_cache: dict[str, BrandGuide] = {}
+        self._scoped_cache: dict[str, ChannelRegistry] = {}
 
     def for_workspace(self, workspace_id: str) -> ChannelRegistry:
-        """워크스페이스별로 스코프된 ChannelRegistry를 반환합니다."""
-        return ChannelRegistry(
+        """워크스페이스별로 스코프된 ChannelRegistry를 반환합니다 (캐시됨)."""
+        if workspace_id in self._scoped_cache:
+            return self._scoped_cache[workspace_id]
+        scoped = ChannelRegistry(
             channels_dir=self._base_channels_dir,
             workspace_id=workspace_id,
         )
+        self._scoped_cache[workspace_id] = scoped
+        return scoped
 
     @property
     def channels_dir(self) -> Path:

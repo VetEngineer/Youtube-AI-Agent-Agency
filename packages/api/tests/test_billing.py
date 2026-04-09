@@ -12,7 +12,8 @@ def test_toss_order_id에_플랜과_workspace_prefix가_포함된다():
 
     order_id = _build_toss_order_id(workspace_id, "pro")
 
-    assert order_id.startswith("yaa-pro-12345678-")
+    ws_compact = workspace_id.replace("-", "")
+    assert order_id.startswith(f"yaa-pro-{ws_compact}-")
     assert _extract_toss_plan(order_id) == "pro"
 
 

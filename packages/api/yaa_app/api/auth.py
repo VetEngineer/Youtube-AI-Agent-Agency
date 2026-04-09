@@ -164,10 +164,14 @@ async def _resolve_jwt(
     if jwt_workspace_id:
         workspace_repo = WorkspaceRepository(session)
         ws = await workspace_repo.get(jwt_workspace_id)
-        if ws and ws.owner_id == user.id:
-            workspace_id = jwt_workspace_id
-        else:
-            workspace_id = None
+        if ws is None or ws.owner_id != user.id:
+            logger.warning(
+                "JWT workspace_id 소유권 불일치: user=%s ws=%s",
+                user.id,
+                jwt_workspace_id,
+            )
+            return AuthContext()
+        workspace_id = jwt_workspace_id
     else:
         workspace_repo = WorkspaceRepository(session)
         workspaces = await workspace_repo.list_by_owner(user.id)
@@ -226,7 +230,7 @@ async def get_auth_context(
     인증 필수. workspace_id 포함.
     """
     if settings.disable_auth:
-        return AuthContext(auth_method="none")
+        return AuthContext(auth_method="none", workspace_id="__dev__")
 
     ctx = await _resolve_auth(request, session, settings)
     if ctx.auth_method == "none":
