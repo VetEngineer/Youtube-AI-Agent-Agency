@@ -47,8 +47,8 @@ export default function PipelinesPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Pipelines</h2>
-                    <p className="text-muted-foreground">All pipeline executions.</p>
+                    <h2 className="text-3xl font-bold text-balance">Pipelines</h2>
+                    <p className="text-muted-foreground text-pretty">All pipeline executions.</p>
                 </div>
                 <Button asChild>
                     <Link href="/pipelines/new">
@@ -88,15 +88,14 @@ export default function PipelinesPage() {
 
             {!isLoading && !error && runs.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="relative mb-4">
-                        <div className="absolute inset-0 rounded-full bg-primary/10 blur-xl scale-150" />
-                        <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
-                            <Inbox className="h-7 w-7 text-primary" />
+                    <div className="mb-4">
+                        <div className="flex size-16 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
+                            <Inbox className="size-7 text-primary" />
                         </div>
                     </div>
-                    <h3 className="text-lg font-semibold mb-1">파이프라인이 없습니다</h3>
-                    <p className="text-sm text-muted-foreground mb-4">첫 번째 파이프라인을 실행해 보세요.</p>
-                    <Button className="glow-red" asChild>
+                    <h3 className="text-lg font-semibold mb-1 text-balance">파이프라인이 없습니다</h3>
+                    <p className="text-sm text-muted-foreground mb-4 text-pretty">첫 번째 파이프라인을 실행해 보세요.</p>
+                    <Button asChild>
                         <Link href="/pipelines/new">
                             <Plus className="mr-2 h-4 w-4" /> New Pipeline
                         </Link>

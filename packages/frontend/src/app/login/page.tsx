@@ -41,12 +41,12 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="flex min-h-dvh items-center justify-center bg-background px-4">
             <div className="w-full max-w-md space-y-4">
                 <Card>
                     <CardHeader className="text-center pb-4">
                         <div className="flex justify-center mb-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
+                            <div className="flex size-10 items-center justify-center rounded-xl bg-primary">
                                 <svg className="h-5 w-5 text-primary-foreground" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M23 12l-10.5-9.5v5c-8 0-12.5 5-12.5 13 2-5 6-7.5 12.5-7.5v5L23 12z" />
                                 </svg>

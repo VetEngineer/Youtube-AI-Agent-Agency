@@ -78,8 +78,8 @@ export default function PipelineNewPage() {
                     </Link>
                 </Button>
                 <div>
-                    <h3 className="text-lg font-medium">Create New Pipeline</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="text-lg font-medium text-balance">Create New Pipeline</h3>
+                    <p className="text-sm text-muted-foreground text-pretty">
                         Start a new AI content generation process.
                     </p>
                 </div>

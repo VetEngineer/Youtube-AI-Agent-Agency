@@ -115,8 +115,8 @@ export default function GuidePage() {
     <div className="max-w-4xl mx-auto space-y-10 pb-12">
       {/* Header */}
       <div className="space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">사용 가이드</h2>
-        <p className="text-muted-foreground text-lg">
+        <h2 className="text-3xl font-bold text-balance">사용 가이드</h2>
+        <p className="text-muted-foreground text-lg text-pretty">
           YouTube AI Agent Agency를 처음 사용하는 분을 위한 빠른 시작 안내서입니다.
         </p>
       </div>

@@ -402,8 +402,8 @@ export default function CompetitorsPage() {
             {/* 헤더 */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Competitors</h2>
-                    <p className="text-muted-foreground">
+                    <h2 className="text-3xl font-bold text-balance">Competitors</h2>
+                    <p className="text-muted-foreground text-pretty">
                         경쟁 채널의 업로드 현황과 영상 성과를 모니터링합니다.
                     </p>
                 </div>

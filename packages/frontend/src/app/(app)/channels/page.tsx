@@ -68,8 +68,8 @@ export default function ChannelsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Channels</h2>
-                    <p className="text-muted-foreground">Manage your YouTube channels.</p>
+                    <h2 className="text-3xl font-bold text-balance">Channels</h2>
+                    <p className="text-muted-foreground text-pretty">Manage your YouTube channels.</p>
                 </div>
                 <Button onClick={() => setOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" /> Connect Channel

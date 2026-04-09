@@ -297,7 +297,7 @@ export default function OnboardingPage() {
     const goBack = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
     return (
-        <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center py-12">
+        <div className="flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center py-12">
             <StepIndicator currentStep={currentStep} />
             {currentStep === 1 && <WelcomeStep onNext={goNext} />}
             {currentStep === 2 && <CreateChannelStep onNext={goNext} onBack={goBack} />}

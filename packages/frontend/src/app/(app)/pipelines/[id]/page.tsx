@@ -104,13 +104,13 @@ export default function PipelineDetailPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" asChild>
+                    <Button variant="ghost" size="icon" asChild aria-label="대시보드로 돌아가기">
                         <Link href="/">
-                            <ArrowLeft className="h-4 w-4" />
+                            <ArrowLeft className="size-4" />
                         </Link>
                     </Button>
                     <div>
-                        <h2 className="text-2xl font-bold tracking-tight">{pipeline.topic}</h2>
+                        <h2 className="text-2xl font-bold text-balance">{pipeline.topic}</h2>
                         <p className="text-sm text-muted-foreground">
                             {pipeline.channel_id} {pipeline.dry_run && '(Dry Run)'}
                         </p>
@@ -144,7 +144,7 @@ export default function PipelineDetailPage() {
             <div className="grid gap-6 md:grid-cols-3">
                 <div className="md:col-span-2 space-y-6">
                     <div className="rounded-xl border bg-card text-card-foreground shadow p-6">
-                        <h3 className="font-semibold mb-4">Pipeline Progress</h3>
+                        <h3 className="font-semibold mb-4 text-balance">Pipeline Progress</h3>
                         <div className="space-y-1">
                             {PIPELINE_STAGES.map((stage, index) => {
                                 const status = getStageStatus(pipeline.current_agent, stage.key, pipeline.status);
@@ -172,7 +172,7 @@ export default function PipelineDetailPage() {
                     </div>
 
                     <div className="rounded-xl border bg-card text-card-foreground shadow p-6">
-                        <h3 className="font-semibold mb-4">Execution Log</h3>
+                        <h3 className="font-semibold mb-4 text-balance">Execution Log</h3>
                         <div className="bg-black/50 text-white p-4 rounded-lg font-mono text-sm h-48 overflow-y-auto">
                             <div className="text-gray-400">[{new Date(pipeline.created_at).toLocaleTimeString()}] Pipeline initialized</div>
                             {pipeline.current_agent && (
@@ -194,7 +194,7 @@ export default function PipelineDetailPage() {
 
                 <div className="space-y-6">
                     <div className="rounded-xl border bg-card text-card-foreground shadow p-6">
-                        <h3 className="font-semibold mb-4">Details</h3>
+                        <h3 className="font-semibold mb-4 text-balance">Details</h3>
                         <dl className="space-y-3 text-sm">
                             <div>
                                 <dt className="text-muted-foreground">Run ID</dt>
@@ -230,7 +230,7 @@ export default function PipelineDetailPage() {
                     </div>
 
                     <div className="rounded-xl border bg-card text-card-foreground shadow p-6">
-                        <h3 className="font-semibold mb-4">Results</h3>
+                        <h3 className="font-semibold mb-4 text-balance">Results</h3>
                         {pipeline.result ? (
                             <div className="space-y-4">
                                 {pipeline.result.video_url && /^https?:\/\//i.test(pipeline.result.video_url) && (
