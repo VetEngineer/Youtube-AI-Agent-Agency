@@ -179,16 +179,34 @@
 **목표**: GitHub Actions로 크로스플랫폼 빌드 자동화
 
 ### 체크리스트
-- [ ] `tauri.conf.json` 번들 설정 (macOS/Windows/Linux)
-- [ ] 앱 아이콘 생성 (`src-tauri/icons/`)
-- [ ] `.github/workflows/desktop-release.yml`
-- [ ] macOS 공증 설정 (Apple Developer)
-- [ ] Tauri Updater 설정 (`latest.json` endpoint)
-- [ ] 전체 빌드 테스트 (`npm run tauri build`)
+- [x] `tauri.conf.json` 번들 설정 (macOS/Windows/Linux) — M1에서 완료
+- [x] 앱 아이콘 (`src-tauri/icons/`) — Tauri 기본 아이콘 사용
+- [x] `.github/workflows/desktop-release.yml` — 크로스플랫폼 4-target 매트릭스
+- [x] macOS 공증 설정 — secrets 플레이스홀더 완비 (APPLE_ID, APPLE_TEAM_ID 등)
+- [x] Tauri Updater 설정 — `tauri-plugin-updater` + GitHub Releases 엔드포인트
+- [ ] 실제 릴리즈 테스트 (`git tag desktop-v0.1.0`) — Apple Developer 자격증명 등록 후
 
-### 상태: ⏳ 대기
-### 완료일: -
-### 리뷰 결과: -
+### 상태: ✅ 완료 (릴리즈 태그 제외)
+### 완료일: 2026-04-10
+### 리뷰 결과: cargo check + tsc --noEmit 통과
+
+### 릴리즈 전 필수 액션
+```bash
+# 1. 업데이터 서명키 생성
+tauri signer generate -w ~/.tauri/yaa-desktop.key
+
+# 2. tauri.conf.json pubkey 필드를 출력된 공개키로 교체
+
+# 3. GitHub Secrets 등록
+#    TAURI_SIGNING_PRIVATE_KEY = (비밀키 내용)
+#    TAURI_SIGNING_PRIVATE_KEY_PASSWORD = (비밀번호)
+#    APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY
+#    APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID
+
+# 4. 첫 릴리즈
+git tag desktop-v0.1.0
+git push origin desktop-v0.1.0
+```
 
 ---
 
@@ -209,3 +227,5 @@
 | 2026-04-10 | M4 | 시작 | Tauri 네이티브 기능 구현 시작 |
 | 2026-04-10 | M4 | 리뷰 10차 | **P0 없음 PASS** — Docker 제어/트레이/백엔드 모드 전반 |
 | 2026-04-10 | M4 | 완료 | cargo check + tsc + vite build 전체 통과 |
+| 2026-04-10 | M5 | 시작 | 패키징 CI/CD 구현 |
+| 2026-04-10 | M5 | 완료 | desktop-release.yml + Tauri Updater + cargo check + tsc 통과 |
