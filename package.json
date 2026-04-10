@@ -2,9 +2,14 @@
   "name": "youtube-ai-agent-agency",
   "version": "1.0.0",
   "description": "",
+  "workspaces": [
+    "packages/desktop"
+  ],
   "scripts": {
     "dev": "parcel index.html",
-    "build": "parcel build index.html"
+    "build": "parcel build index.html",
+    "desktop:dev": "npm run tauri:dev --workspace=yaa-desktop",
+    "desktop:build": "npm run tauri:build --workspace=yaa-desktop"
   },
   "repository": {
     "type": "git",

@@ -59,3 +59,9 @@ packages/*/data/
 # Misc
 output/
 .gstack/
+
+# Desktop (Tauri) build artifacts
+packages/desktop/src-tauri/target/
+packages/desktop/src-tauri/gen/
+packages/desktop/dist/
+packages/desktop/.tauri/
