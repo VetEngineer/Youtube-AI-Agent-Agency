@@ -142,7 +142,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 session.user.email = token.email || '';
                 session.user.name = token.name || '';
                 session.user.image = token.picture as string | undefined;
-                (session.user as Record<string, unknown>).isAdmin = token.isAdmin ?? false;
+                (session.user as unknown as Record<string, unknown>).isAdmin = token.isAdmin ?? false;
             }
             return session;
         },
