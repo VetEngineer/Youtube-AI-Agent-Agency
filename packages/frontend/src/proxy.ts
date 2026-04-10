@@ -7,7 +7,7 @@ export default auth((req: NextRequest & { auth: unknown }) => {
     const { pathname } = req.nextUrl;
 
     // 공개 경로는 통과
-    const publicPaths = ['/login', '/landing', '/pricing', '/api/auth', '/terms', '/privacy'];
+    const publicPaths = ['/login', '/landing', '/pricing', '/api/auth', '/api/v1', '/terms', '/privacy'];
     const isPublic = publicPaths.some((p) => pathname.startsWith(p));
     if (isPublic) return NextResponse.next();
 

@@ -2,7 +2,9 @@ import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import type { OAuthConfig, OAuthUserConfig } from 'next-auth/providers';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = process.env.API_INTERNAL_URL
+  ? `${process.env.API_INTERNAL_URL}/api/v1`
+  : (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1');
 
 // ============================================
 // Kakao 커스텀 프로바이더
