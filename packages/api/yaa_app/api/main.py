@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -41,8 +42,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     settings = get_settings()
 
-    await init_db(settings.database_url)
-    logger.info("데이터베이스 초기화 완료")
+    try:
+        await asyncio.wait_for(init_db(settings.database_url), timeout=30)
+        logger.info("데이터베이스 초기화 완료")
+    except TimeoutError:
+        logger.error("데이터베이스 초기화 타임아웃 (30초) — 서버를 종료합니다")
+        raise RuntimeError("DB 초기화 타임아웃") from None
 
     yield
 

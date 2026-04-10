@@ -39,12 +39,14 @@ def create_engine_from_url(database_url: str) -> async_sessionmaker[AsyncSession
         connect_args = {"check_same_thread": False}
     elif "asyncpg" in database_url:
         # Supabase/pgbouncer 트랜잭션 풀 모드는 prepared statements 미지원
-        connect_args = {"statement_cache_size": 0}
+        # timeout: 연결 시도 최대 대기 시간(초) — 초과 시 즉시 예외 발생
+        connect_args = {"statement_cache_size": 0, "timeout": 10, "command_timeout": 30}
 
     engine = create_async_engine(
         database_url,
         echo=False,
         pool_pre_ping=True,
+        pool_timeout=15,
         connect_args=connect_args,
     )
     _async_engine = engine

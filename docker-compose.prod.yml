@@ -1,4 +1,11 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: yaa-redis
+    restart: unless-stopped
+    volumes:
+      - yaa_redis_data:/data
+
   api:
     build:
       context: .
@@ -8,7 +15,7 @@ services:
     restart: unless-stopped
     environment:
       - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
+      - REDIS_URL=redis://redis:6379
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
@@ -19,12 +26,14 @@ services:
       - DISABLE_AUTH=${DISABLE_AUTH:-false}
     ports:
       - "8001:8000"
+    depends_on:
+      - redis
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
-      timeout: 10s
+      timeout: 15s
       retries: 3
-      start_period: 60s
+      start_period: 90s
 
   worker:
     image: yaa:latest
@@ -33,11 +42,14 @@ services:
     command: ["/app/worker-entrypoint.sh"]
     environment:
       - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
+      - REDIS_URL=redis://redis:6379
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
       - DISABLE_AUTH=${DISABLE_AUTH:-false}
     depends_on:
-      api:
-        condition: service_healthy
+      - redis
+      - api
+
+volumes:
+  yaa_redis_data:
