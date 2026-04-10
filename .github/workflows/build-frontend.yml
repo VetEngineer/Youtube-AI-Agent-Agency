@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: vetEngineer/yaa-frontend
+  IMAGE_NAME: vetengineer/yaa-frontend
 
 jobs:
   build-and-push:
@@ -39,7 +39,7 @@ jobs:
           context: ./packages/frontend
           file: ./packages/frontend/Dockerfile
           push: true
-          tags: ghcr.io/vetEngineer/yaa-frontend:latest
+          tags: ghcr.io/vetengineer/yaa-frontend:latest
           build-args: |
             NEXT_PUBLIC_API_BASE_URL=https://ytai.hakhamsolution.co.kr/api/v1
           cache-from: type=gha
