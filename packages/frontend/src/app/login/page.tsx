@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
@@ -21,9 +21,21 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     Default: '로그인 중 오류가 발생했습니다. 다시 시도해주세요.',
 };
 
-export default function LoginPage() {
+function AuthErrorBanner() {
     const searchParams = useSearchParams();
     const authError = searchParams.get('error');
+    if (!authError) return null;
+    return (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {AUTH_ERROR_MESSAGES[authError] ?? AUTH_ERROR_MESSAGES.Default}
+            {process.env.NODE_ENV === 'development' && (
+                <span className="ml-1 font-mono opacity-70">[{authError}]</span>
+            )}
+        </div>
+    );
+}
+
+export default function LoginPage() {
     const [bypassOpen, setBypassOpen] = useState(false);
     const [email, setEmail] = useState('');
     const [token, setToken] = useState('');
@@ -75,14 +87,9 @@ export default function LoginPage() {
 
                     <CardContent className="space-y-3">
                         {/* OAuth 에러 표시 */}
-                        {authError && (
-                            <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                                {AUTH_ERROR_MESSAGES[authError] ?? AUTH_ERROR_MESSAGES.Default}
-                                {process.env.NODE_ENV === 'development' && (
-                                    <span className="ml-1 font-mono opacity-70">[{authError}]</span>
-                                )}
-                            </div>
-                        )}
+                        <Suspense>
+                            <AuthErrorBanner />
+                        </Suspense>
 
                         {/* 카카오 로그인 */}
                         <Button
