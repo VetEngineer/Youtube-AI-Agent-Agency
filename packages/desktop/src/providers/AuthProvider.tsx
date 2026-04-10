@@ -1,5 +1,12 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, type JSX } from 'react'
 import * as tauriStore from '@/lib/tauri-store'
+
+function isLocalUrl(url: string): boolean {
+  try {
+    const h = new URL(url).hostname
+    return h === 'localhost' || h === '127.0.0.1' || h === '::1'
+  } catch { return false }
+}
 import {
   setInMemoryKey,
   clearInMemoryKey,
@@ -26,6 +33,10 @@ interface AuthContextValue extends AuthState {
   setApiKey: (key: string, backendUrl?: string) => Promise<void>
   clearApiKey: () => Promise<void>
   backendUrl: string
+  /** BackendProvider가 모드 전환 시 호출 — store 쓰기 없이 React 상태만 업데이트 */
+  setLiveBackendUrl: (url: string) => void
+  /** 백엔드 전환 시 호출 — 저장된 API 키 삭제 + isAuthenticated false로 전환 (URL store 비변경) */
+  clearAuthForBackendSwitch: (newUrl: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -44,7 +55,11 @@ interface MeResponse {
 
 function isSecureUrl(url: string): boolean {
   try {
-    return new URL(url).protocol === 'https:'
+    const parsed = new URL(url)
+    // localhost HTTP is allowed for local Docker mode; all remote URLs must be HTTPS
+    if (parsed.protocol === 'https:') return true
+    if (parsed.protocol === 'http:' && parsed.hostname === 'localhost') return true
+    return false
   } catch {
     return false
   }
@@ -127,6 +142,8 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
       if (_authVersion.current !== version) return
       if (url) {
         await tauriStore.setBackendUrl(url)
+        // Persist remote URL separately so BackendBridge can restore it after local mode
+        if (!isLocalUrl(url)) await tauriStore.setRemoteBackendUrl(url)
         setBackendUrl(url)
       }
       await tauriStore.setApiKey(key)
@@ -191,6 +208,23 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     return () => { cancelled = true }
   }, [])
 
+  const setLiveBackendUrl = useCallback((url: string) => {
+    setBackendUrl(url)
+  }, [])
+
+  const clearAuthForBackendSwitch = useCallback(async (newUrl: string) => {
+    _authVersion.current += 1
+    await tauriStore.clearApiKey()
+    clearInMemoryKey()
+    setBackendUrl(newUrl)
+    setState((prev) => ({
+      ...prev,
+      apiKey: null,
+      isAuthenticated: false,
+      userInfo: null,
+    }))
+  }, [])
+
   const clearApiKeyRef = useRef(clearApiKey)
   clearApiKeyRef.current = clearApiKey
 
@@ -200,7 +234,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ ...state, setApiKey, clearApiKey, backendUrl }}>
+    <AuthContext.Provider value={{ ...state, setApiKey, clearApiKey, backendUrl, setLiveBackendUrl, clearAuthForBackendSwitch }}>
       {children}
     </AuthContext.Provider>
   )

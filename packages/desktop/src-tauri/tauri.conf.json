@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https:; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self' data:"
+      "csp": "default-src 'self'; connect-src 'self' https: http://localhost:8000; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self' data:"
     }
   },
   "bundle": {
@@ -40,6 +40,6 @@
     "macOS": {
       "minimumSystemVersion": "10.15"
     },
-    "resources": []
+    "resources": ["resources/docker-compose.desktop.yml"]
   }
 }

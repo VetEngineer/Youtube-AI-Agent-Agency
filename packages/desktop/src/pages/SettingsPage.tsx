@@ -1,4 +1,5 @@
 import { useState, type JSX } from 'react'
+import { BackendSection } from '@/pages/settings/BackendSection'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -1073,6 +1074,7 @@ export default function SettingsPage(): JSX.Element {
           <TabsTrigger value="channels">채널</TabsTrigger>
           <TabsTrigger value="integrations">연동</TabsTrigger>
           <TabsTrigger value="plans">요금제</TabsTrigger>
+          <TabsTrigger value="backend">백엔드 연결</TabsTrigger>
         </TabsList>
 
         <TabsContent value="account" className="rounded-xl border bg-card text-card-foreground shadow p-6">
@@ -1093,6 +1095,10 @@ export default function SettingsPage(): JSX.Element {
 
         <TabsContent value="plans" className="rounded-xl border bg-card text-card-foreground shadow p-6">
           <PlansSection />
+        </TabsContent>
+
+        <TabsContent value="backend" className="rounded-xl border bg-card text-card-foreground shadow p-6">
+          <BackendSection />
         </TabsContent>
       </Tabs>
     </div>

@@ -36,8 +36,11 @@ export default function OnboardingPage(): JSX.Element {
   const handleUrlNext = () => {
     const url = backendUrl.trim() || DEFAULT_BACKEND_URL
     try {
-      if (new URL(url).protocol !== 'https:') {
-        setError('HTTPS 연결만 지원합니다.')
+      const parsed = new URL(url)
+      const isHttps = parsed.protocol === 'https:'
+      const isLocalhost = parsed.protocol === 'http:' && parsed.hostname === 'localhost'
+      if (!isHttps && !isLocalhost) {
+        setError('HTTPS 또는 localhost HTTP 연결만 지원합니다.')
         return
       }
     } catch {

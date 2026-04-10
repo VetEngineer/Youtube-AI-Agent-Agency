@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  yaa-backend:
+    image: ghcr.io/vetEngineer/youtube-ai-agent-agency:latest
+    container_name: yaa-backend-desktop
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////data/yaa.db
+    volumes:
+      - yaa-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  yaa-data:
+    name: yaa-desktop-data

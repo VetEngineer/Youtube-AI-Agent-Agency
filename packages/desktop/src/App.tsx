@@ -1,6 +1,8 @@
-import { Component, useEffect, useMemo, type JSX, type ReactNode, type ErrorInfo } from 'react'
+import { Component, useCallback, useEffect, useMemo, useState, type JSX, type ReactNode, type ErrorInfo } from 'react'
 import { createMemoryRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/providers/AuthProvider'
+import { BackendProvider } from '@/providers/BackendProvider'
+import * as tauriStore from '@/lib/tauri-store'
 import { Button } from '@/components/ui/button'
 import AppLayout from '@/components/AppLayout'
 import LoginPage from '@/pages/LoginPage'
@@ -77,6 +79,38 @@ function RequireAuth({ children }: { children: JSX.Element }): JSX.Element {
   return isAuthenticated ? children : <Navigate to="/login" replace />
 }
 
+// ─── Backend Bridge ──────────────────────────────────────────────────────────
+// Sits inside AuthProvider so it can read apiKey and backendUrl from AuthContext.
+// Wires BackendProvider.onUrlChange → api.ts setInMemoryKey, preserving the
+// current apiKey so requests continue to be authenticated after a URL switch.
+function BackendBridge({ children }: { children: ReactNode }): JSX.Element {
+  const { apiKey, clearAuthForBackendSwitch } = useAuth()
+
+  // Dedicated remote URL from store — only updated by setApiKey (explicit auth),
+  // never mutated by local mode switches. Re-read on mount and after auth changes.
+  const [remoteUrl, setRemoteUrl] = useState<string>(tauriStore.DEFAULT_BACKEND_URL)
+  useEffect(() => {
+    void tauriStore.getRemoteBackendUrl().then(setRemoteUrl)
+  }, [apiKey]) // re-read after login/logout to pick up new remote URL
+
+  // Full auth clear on backend switch — prevents stale session on new backend.
+  const handleUrlChange = useCallback(
+    (url: string) => {
+      void clearAuthForBackendSwitch(url)
+    },
+    [clearAuthForBackendSwitch]
+  )
+
+  return (
+    <BackendProvider
+      remoteBackendUrl={remoteUrl}
+      onUrlChange={handleUrlChange}
+    >
+      {children}
+    </BackendProvider>
+  )
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 // Router is created inside App so it is co-located with the component tree it serves.
 function App(): JSX.Element {
@@ -114,9 +148,11 @@ function App(): JSX.Element {
 
   return (
     <AuthProvider>
-      <ErrorBoundary>
-        <RouterProvider router={router} />
-      </ErrorBoundary>
+      <BackendBridge>
+        <ErrorBoundary>
+          <RouterProvider router={router} />
+        </ErrorBoundary>
+      </BackendBridge>
     </AuthProvider>
   )
 }
