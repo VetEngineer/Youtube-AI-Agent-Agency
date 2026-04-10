@@ -13,17 +13,10 @@ services:
     image: yaa:latest
     container_name: yaa-api
     restart: unless-stopped
+    env_file:
+      - .env.oracle
     environment:
-      - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=redis://redis:6379
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - JWT_SECRET=${JWT_SECRET}
-      - CORS_ORIGINS=${CORS_ORIGINS}
-      - TOSS_CLIENT_KEY=${TOSS_CLIENT_KEY:-}
-      - TOSS_SECRET_KEY=${TOSS_SECRET_KEY:-}
-      - TOSS_WEBHOOK_SECRET=${TOSS_WEBHOOK_SECRET:-}
-      - DISABLE_AUTH=${DISABLE_AUTH:-false}
     ports:
       - "8001:8000"
     depends_on:
@@ -40,13 +33,12 @@ services:
     container_name: yaa-worker
     restart: unless-stopped
     command: ["/app/worker-entrypoint.sh"]
+    env_file:
+      - .env.oracle
     environment:
-      - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=redis://redis:6379
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - JWT_SECRET=${JWT_SECRET}
-      - DISABLE_AUTH=${DISABLE_AUTH:-false}
+    healthcheck:
+      disable: true
     depends_on:
       - redis
       - api
