@@ -42,13 +42,15 @@ def create_engine_from_url(database_url: str) -> async_sessionmaker[AsyncSession
         # timeout: 연결 시도 최대 대기 시간(초) — 초과 시 즉시 예외 발생
         connect_args = {"statement_cache_size": 0, "timeout": 10, "command_timeout": 30}
 
-    engine = create_async_engine(
-        database_url,
-        echo=False,
-        pool_pre_ping=True,
-        pool_timeout=15,
-        connect_args=connect_args,
-    )
+    engine_kwargs: dict = {
+        "echo": False,
+        "connect_args": connect_args,
+    }
+    if not database_url.startswith("sqlite"):
+        engine_kwargs["pool_pre_ping"] = True
+        engine_kwargs["pool_timeout"] = 15
+
+    engine = create_async_engine(database_url, **engine_kwargs)
     _async_engine = engine
 
     return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
