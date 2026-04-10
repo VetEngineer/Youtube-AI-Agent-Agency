@@ -41,5 +41,13 @@
       "minimumSystemVersion": "10.15"
     },
     "resources": ["resources/docker-compose.desktop.yml"]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "PLACEHOLDER — tauri signer generate 실행 후 공개키로 교체",
+      "endpoints": [
+        "https://github.com/VetEngineer/Youtube-AI-Agent-Agency/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
