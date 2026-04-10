@@ -1,7 +1,7 @@
 # YAA (Youtube-AI-Agent-Agency) 핸드오프 문서
 
-> 작성일: 2026-03-28
-> 다음 세션에서 이어서 작업할 수 있도록 현재 상태를 정리한 문서
+> 작성일: 2026-04-10 (6차)
+> 이전 핸드오프: 2026-04-10 (5차)
 
 ---
 
@@ -9,188 +9,254 @@
 
 | 서비스 | URL | 상태 |
 |--------|-----|------|
-| 프론트엔드 | https://ytai.hakhamsolution.co.kr | ✅ 운영 중 |
-| API 서버 | https://api.ytai.hakhamsolution.co.kr | ⚠️ VM 재시작 필요 |
-| OCI VM | 134.185.113.58 | ⚠️ SSH 접속 불가 (재부팅 후에도 타임아웃) |
+| 프론트엔드 | https://ytai.hakhamsolution.co.kr | 운영 중 |
+| 프론트엔드 (Vercel) | https://ytai-chi.vercel.app | 운영 중 |
+| API 서버 | https://api.ytai.hakhamsolution.co.kr | 운영 중 (OCI VM) |
+| OCI VM | 134.185.113.58:22 | SSH 가능 |
 
 ---
 
-## 2. 인프라 구성
+## 2. 완료된 작업 (이번 세션 — Desktop M4+M5)
 
-```
-[Vercel] ytai.hakhamsolution.co.kr
-  Next.js 16 + React 19
+### 2-0. Desktop M4 — Tauri 네이티브 기능 (커밋 `94a5650`)
 
-[OCI VM - 134.185.113.58]
-  OS: Oracle Linux (opc 사용자)
-  SSH 키: ~/Downloads/OCI ssh key_XEO/ssh-key-2026-03-11.key
+- `commands/backend.rs`: Docker 제어 4종 (`check_docker_available`, `start_local_backend`, `stop_local_backend`, `get_local_backend_status`)
+  - `generate_local_secret()`: `/dev/urandom` 32바이트 hex (Windows XOR 폴백)
+  - `start_local_backend`: `--pull missing` + `SECRET_KEY` 런타임 주입
+  - `get_local_backend_status`: NDJSON 파싱 (State/Health 매핑)
+- `tray/mod.rs`: 시스템 트레이 (열기/종료 메뉴, 좌클릭 윈도우 복원, CloseRequested → 숨김)
+- `lib.rs`: `QuitRequested` AtomicBool 상태, invoke_handler 5종, `on_window_event` 핸들러
+- `resources/docker-compose.desktop.yml`: SQLite `////data/yaa.db` 절대경로, `127.0.0.1:8000`, healthcheck
+- `lib/tauri-store.ts`: `getRemoteBackendUrl`, `getBackendMode`, `setBackendMode`, `getLocalBackendPort` 추가
+- `providers/BackendProvider.tsx`: store 싱글톤 통합, `onUrlChangeRef` 패턴, Docker 미설치 → remote 폴백
+- `providers/AuthProvider.tsx`: `clearAuthForBackendSwitch`, `isLocalUrl`, `isSecureUrl` 추가
+- `App.tsx`: `BackendBridge` — `clearAuthForBackendSwitch` 연동, `remoteUrl` async 로드
+- `pages/settings/BackendSection.tsx`: 백엔드 모드 전환 UI, 5초 폴링, radio 접근성
 
-  /home/opc/YAA/
-    docker-compose.yml     ← API + Worker 컨테이너
-    .env.oracle            ← 환경변수 파일
+**10회 codex:review 사이클 핵심 수정:**
+- P0: SECRET_KEY 하드코딩 → 런타임 생성
+- P0: `isLocalUrl` 127.0.0.1 + ::1 포함
+- P1: BackendProvider init → onUrlChange 제거 (AuthProvider 담당)
+- P1: `isMountedRef` 레이스 → `cancelled` 패턴
+- P1: store 싱글톤 중복 → tauri-store.ts 통합
 
-  /home/opc/XEO-Analyzer/infra/Caddyfile
-    → api.ytai.hakhamsolution.co.kr → localhost:8001 리버스 프록시
+### 2-0b. Desktop M5 — 패키징 CI/CD (커밋 `9922930`)
 
-[Supabase] PostgreSQL DB
-[Upstash] Redis 큐 (Arq Worker)
-```
+- `.github/workflows/desktop-release.yml`: 크로스플랫폼 4-target 매트릭스
+  - macOS arm64 / macOS x64 / Ubuntu 22.04 / Windows
+  - 트리거: `workflow_dispatch` + `desktop-v*` 태그 push
+  - `tauri-apps/tauri-action@v0` — GitHub Release 자동 생성
+  - macOS 공증 secrets: `APPLE_CERTIFICATE`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`
+  - 업데이터 서명 secrets: `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- `tauri-plugin-updater = "2"` 등록 (Cargo.toml + lib.rs + capabilities/default.json)
+- `tauri.conf.json`: `plugins.updater` — GitHub Releases `latest.json` 엔드포인트 (pubkey 플레이스홀더)
 
----
-
-## 3. 이번 세션에서 완료한 작업
-
-### 3-1. CI/CD 수정 (완료 ✅)
-- ruff lint 오류 전체 수정 (E501, UP042, F401, I001)
-- ruff format 22개 파일 적용
-- 테스트 패치 오류 수정 (module-level imports)
-- CI #52 이후 Test + Lint + Docker Build 모두 통과
-
-### 3-2. OCI VM 백엔드 배포 (완료 ✅, 현재 VM 불안정)
-- Dockerfile.prod: `psycopg2-binary`, `packages/core[db-prod]` 추가
-- entrypoint.sh: `uv run` → `python -m` 변경
-- worker-entrypoint.sh: `WorkerSettings` → `WorkerConfig` 수정
-- Supabase pgbouncer 호환: `statement_cache_size=0` 추가
-- Alembic 마이그레이션 체인 수정 (중복 revision ID 해결)
-- `alembic stamp` + `create_all()` 로 기존 DB 초기화
-- Caddy: `api.ytai.hakhamsolution.co.kr` 도메인 설정
-
-### 3-3. Vercel Analytics (완료 ✅)
-- `@vercel/analytics`, `@vercel/speed-insights` layout.tsx에 추가
-
-### 3-4. 사업자 정보 고시 (완료 ✅)
-- 마케팅 푸터에 전자상거래법 필수 항목 추가
-  - 상호: 하캄솔루션 | 대표자: 강은구
-  - 사업자등록번호: 435-17-01222
-  - 통신판매업 신고번호: 2020-대전유성-1677
-  - 사업장: 대전광역시 유성구 은구비남로33번길 13-8, 3층 3043호
-  - 문의: 카카오톡 채널 http://pf.kakao.com/_GxmxcTG/chat
-
-### 3-5. Toss Payments 연동 명세서 (완료 ✅)
-- `docs/TOSS_PAYMENTS_INTEGRATION.md` 생성 및 push
-- PG사 전달용 결제 플로우, API 엔드포인트, 인프라 구성 문서화
-
-### 3-6. 카카오 로그인 + 우회 로그인 (완료 ✅)
-- `src/lib/auth.ts`: Google/GitHub → Kakao 커스텀 OAuth 프로바이더
-- `src/app/login/page.tsx`: 카카오 버튼 + 베타 접근 코드 폼
-- `src/proxy.ts`: 실제 라우트 보호 미들웨어 (비로그인 → /login 리디렉션)
-- Vercel 환경변수: `BYPASS_LOGIN_SECRET=yaa-beta-2026` 설정 완료
-
----
-
-## 4. 남은 작업 (다음 세션)
-
-### 4-1. 🔴 OCI VM SSH 복구 (최우선)
-**증상:** VM Running 상태이나 SSH 배너 교환에서 타임아웃
-**의심 원인:** 재부팅 후에도 동일 증상 → OCI Security List 또는 VM 내부 iptables 문제
-
-**확인 방법 (OCI Console에서):**
-1. Networking → Virtual Cloud Networks → VCN 클릭
-2. Security Lists → Default Security List
-3. Ingress Rules에서 SSH(22) 규칙 확인
-   - Source: 0.0.0.0/0, Protocol: TCP, Dest Port: 22 있어야 함
-4. 없으면 Add Ingress Rule로 추가
-
-**또는 VM Serial Console 사용:**
-- OCI Console → Instance → Resources → Console connection → Launch Cloud Shell
-
-### 4-2. 🟡 Toss Payments 테스트키 적용
-**현황:** `.env.oracle`에 TOSS 키 미설정 (나머지 키는 모두 정상)
-**발급처:** https://developers.tosspayments.com → 내 개발정보 → API 키
-
+### Desktop 릴리즈 전 필수 액션
 ```bash
-# SSH 복구 후 실행
-ssh -i ~/Downloads/"OCI ssh key_XEO"/ssh-key-2026-03-11.key opc@134.185.113.58
-vi /home/opc/YAA/.env.oracle
-# 아래 줄 추가:
-# TOSS_CLIENT_KEY=test_ck_...
-# TOSS_SECRET_KEY=test_sk_...
-cd /home/opc/YAA && docker compose restart api
+# 1. 서명키 생성
+tauri signer generate -w ~/.tauri/yaa-desktop.key
+
+# 2. 출력된 공개키 → tauri.conf.json plugins.updater.pubkey 교체
+
+# 3. GitHub Secrets 등록
+#    TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+#    APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY
+#    APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID
+
+# 4. 첫 릴리즈
+git tag desktop-v0.1.0 && git push origin desktop-v0.1.0
 ```
-
-### 4-3. 🟡 카카오 로그인 키 등록
-**현황:** 코드 구현 완료, 환경변수 미설정
-**발급처:** https://developers.kakao.com
-
-**Vercel에 추가할 환경변수:**
-```
-KAKAO_CLIENT_ID=발급받은_REST_API_키
-KAKAO_CLIENT_SECRET=발급받은_클라이언트_시크릿
-```
-
-**카카오 디벨로퍼스 설정:**
-- 카카오 로그인 활성화
-- Redirect URI 등록: `https://ytai.hakhamsolution.co.kr/api/auth/callback/kakao`
-- 동의항목: 닉네임, 이메일(선택), 프로필 이미지(선택)
-
-### 4-4. 🟢 Toss Payments 라이브키 전환 (나중에)
-- 사업자 심사 완료 후
-- 웹훅 URL 등록: `https://api.ytai.hakhamsolution.co.kr/api/v1/billing/toss/webhook`
-- `TOSS_WEBHOOK_SECRET` 설정
 
 ---
 
-## 5. 환경변수 현황
+## 이전 세션 완료 작업 (5차)
 
-### OCI VM `/home/opc/YAA/.env.oracle`
-| 변수 | 상태 |
+### 2-1. P0 보안/결제 취약점 15건 수정 (#68, #69)
+
+**커밋 `d14db66`**
+
+#### #68 인증/보안 (8건)
+- IDOR: admin API 키 삭제 `get_auth_context` 의존성 주입, 소유권 체크 강화
+- `.env.example` DISABLE_AUTH 기본값 `false`
+- `__dev__` workspace_id → `None`
+- ChannelRegistry workspace_id 정규식 검증 (경로 순회 방지)
+- `encrypt_value()` 평문 fallback → `RuntimeError`
+- JWT 시크릿 최소 32자 검증
+- `Dockerfile.prod` 비-root 사용자 (`appuser`)
+- `/metrics` 인증 + 프로덕션 OpenAPI `/docs` 비활성화
+
+#### #69 결제 보안 (6건)
+- Toss confirm `SELECT FOR UPDATE` 멱등성
+- Toss API 응답 금액/주문ID 교차 검증
+- 취소된 구독 DONE 웹훅 재활성화 방지
+- Stripe 웹훅 이벤트 ID LRU 캐시 (중복 방지)
+- checkout plan `PLAN_QUOTAS` 유효성 검증
+- `_price_id_to_plan` 문자열 폴백 → `free` 안전 폴백
+
+### 2-2. P1 백엔드/프론트엔드/DB 이슈 25건 (#70, #71, #72)
+
+**커밋 `38d2068`**
+
+#### #70 백엔드 (11건)
+- pipeline cancel 후 명시적 commit
+- competitors RuntimeError 내부 정보 노출 제거
+- `response.content` list 타입 처리 (4개 에이전트)
+- 수정 프롬프트 `previous_draft` 파라미터 추가
+- 비-Anthropic LLM용 cache_control 제거 로직
+- Auditor JSON 파싱 실패 → FAIL 안전 처리
+- `batch_openai`: `AsyncOpenAI` + `time.monotonic` + 임시파일 정리
+- `oauth_tokens` UNIQUE(workspace_id, provider)
+
+#### #71 프론트엔드 (9건)
+- SSE API 키 쿼리 파라미터 전달
+- `video_url` XSS 방지 (https 프로토콜 검증)
+- signOut 시 sessionStorage API 키 삭제
+- signIn 백엔드 실패 경고 로그
+- `useApiKeys` retry `ApiError.status` 체크
+- SSE esRef cleanup null 리셋
+- `console.error` 4곳 제거
+- API 키 삭제 버튼 `aria-label` 추가
+- `useRetryPipeline` dashboard 캐시 무효화
+
+#### #72 DB 스키마 (5건)
+- API 키 컬럼 `String(200)` → `String(500)`
+- `CompetitorVideo` 유니크 제약 추가
+- `engine.py` 비공개 API → 모듈 변수 + `get_engine()` 공개 API
+
+### 2-3. 회귀 테스트 23건 추가 (#73)
+
+**커밋 `ea210aa`**
+
+- ChannelRegistry 경로순회 방지 테스트
+- 암호화 라운드트립 + ENCRYPTION_KEY 미설정 RuntimeError
+- JWT 시크릿 최소 길이 검증
+- Toss 주문 소유권/멱등성 검증
+- `_price_id_to_plan` 안전 폴백 확인
+
+### 2-4. Baseline UI 위반 86건 수정
+
+**커밋 `3336be3` + `d4b6063`**
+
+- gradient 제거 (대시보드 stat 카드 4개)
+- glow 효과 제거 (sidebar, empty state, glow-red)
+- `font-tabular` → `tabular-nums`
+- `tracking-tight` 제거 (모든 heading)
+- `text-balance` 추가 (모든 heading)
+- `text-pretty` 추가 (모든 paragraph)
+- `min-h-screen` → `min-h-dvh` (login, onboarding)
+- icon-only 버튼 `aria-label` 추가 (전체)
+- `h-* w-*` → `size-*` (정사각형 요소)
+- competitors `confirm()` → AlertDialog 전환
+
+### 2-5. CI 수정
+
+**커밋 `539b24d`**
+
+- `/metrics` 엔드포인트: `get_settings()` 직접 호출 → `Depends(get_settings)` (테스트 override 적용)
+- `ruff format` 7개 파일 적용
+
+### 2-6. GitHub 이슈 정리
+- **종료**: #68, #69, #70, #71, #72, #73
+- **열림**: #64 (채널 마이그레이션, 보류), #67 (ElevenLabs, 수동)
+
+---
+
+## 3. 다음에 해야 할 작업
+
+### 채널 데이터 마이그레이션 (#64, 보류)
+- 사용자 가입 후 OCI VM SSH 접속
+- `channels/{channel_id}` → `channels/{workspace_id}/{channel_id}` 이동
+- DB에서 workspace_id 조회: `SELECT id FROM workspaces`
+
+### ElevenLabs Scale 플랜 전환 (#67, 수동)
+- elevenlabs.io 콘솔에서 현재 사용량 확인
+- Scale 플랜 비용 대비 비교 후 전환
+- 코드 변경 불필요
+
+### OCI VM 배포 (신규 커밋 6건 미배포)
+- 현재 OCI VM: 커밋 `0385580`
+- 최신 main: 커밋 `539b24d`
+- SSH 접속 후 `git pull` → Docker 빌드 → 컨테이너 재시작
+
+### Desktop 첫 릴리즈 (M1~M5 완료, 릴리즈 태그만 남음)
+- `tauri signer generate` → `tauri.conf.json` pubkey 교체 → GitHub Secrets 등록 → `git tag desktop-v0.1.0`
+- 상세: `DESKTOP_MILESTONES.md` 참조
+
+---
+
+## 4. 주의사항
+
+- **GitHub push**: `gh auth switch --user VetEngineer` 필수 (기본 hakhamsolution)
+- **OCI VM SSH**: `ssh -i '/Volumes/Silvernine/Users/eungu/Downloads/OCI ssh key_XEO/ssh-key-2026-03-11.key' opc@134.185.113.58`
+- **OCI VM Docker**: `docker compose -f docker-compose.prod.yml --env-file .env.oracle up -d`
+- **Docker 빌드**: 반드시 `Dockerfile.prod` 사용 (dev Dockerfile은 PyTorch OOM)
+- **Docker USER**: `appuser`로 실행됨 (커밋 `d14db66`부터) — 권한 문제 시 `chown` 필요
+- **환경변수**: `INTERNAL_API_SECRET`, `ENCRYPTION_KEY` → OCI `.env.oracle` 설정 완료
+- **Vercel 환경변수**: `INTERNAL_API_SECRET` → production/preview 설정 완료
+- **Worker 테스트**: `arq` 미설치로 test_worker.py 실패 (기존 이슈)
+
+---
+
+## 5. 마지막 상태
+
+- 브랜치: `main`
+- 마지막 커밋: `15e4880` [docs] DESKTOP_MILESTONES.md — M5 완료 기록
+- GitHub Push: 완료
+- Desktop: M1~M5 전체 완료 (`cargo check` + `tsc --noEmit` + `vite build` 통과)
+- OCI VM: API healthy, Worker started (커밋 `0385580` — 미배포 6건 이상)
+- Vercel: 자동 배포 완료
+- GitHub Issues: #64, #67만 열림
+
+---
+
+## 6. 주요 파일 변경 내역
+
+### 커밋 `d14db66` — P0 보안/결제
+
+| 파일 | 변경 |
 |------|------|
-| DATABASE_URL | ✅ 설정됨 (Supabase) |
-| REDIS_URL | ✅ 설정됨 (Upstash) |
-| ANTHROPIC_API_KEY | ✅ 설정됨 |
-| OPENAI_API_KEY | ✅ 설정됨 |
-| JWT_SECRET | ✅ 설정됨 |
-| CORS_ORIGINS | ✅ ytai.hakhamsolution.co.kr |
-| TOSS_CLIENT_KEY | ❌ 미설정 |
-| TOSS_SECRET_KEY | ❌ 미설정 |
-| TOSS_WEBHOOK_SECRET | ❌ 미설정 |
+| `.env.example` | DISABLE_AUTH=false |
+| `Dockerfile.prod` | USER appuser 추가 |
+| `auth.py` | __dev__→None, JWT 최소 32자 |
+| `main.py` | 프로덕션 OpenAPI 비활성화 |
+| `metrics.py` | /metrics 인증 |
+| `admin.py` | IDOR 수정 (get_auth_context) |
+| `billing.py` | Toss/Stripe 멱등성, 금액 검증, 안전 폴백 |
+| `repositories.py` | SELECT FOR UPDATE |
+| `config.py` | workspace_id 정규식 검증 |
+| `encryption.py` | 평문 fallback → RuntimeError |
 
-### Vercel 환경변수
-| 변수 | 상태 |
+### 커밋 `38d2068` — P1 백엔드/프론트엔드/DB
+
+| 파일 | 변경 |
 |------|------|
-| NEXT_PUBLIC_API_BASE_URL | ✅ api.ytai.hakhamsolution.co.kr |
-| NEXTAUTH_SECRET | ✅ 설정됨 |
-| BYPASS_LOGIN_SECRET | ✅ yaa-beta-2026 |
-| KAKAO_CLIENT_ID | ❌ 미설정 |
-| KAKAO_CLIENT_SECRET | ❌ 미설정 |
+| `agent.py` | response.content list 처리, previous_draft, cache_control 비-Anthropic 폴백 |
+| `auditor.py` | 파싱 실패 FAIL 처리, content list |
+| `editor.py`, `strategist.py` | content list 처리 |
+| `batch_openai.py` | AsyncOpenAI, time.monotonic, tempfile 안전 |
+| `pipeline.py` | cancel 명시적 commit |
+| `competitors.py` | RuntimeError 정보 제거 |
+| `models.py` | String(500), UniqueConstraint, oauth_tokens |
+| `engine.py` | 비공개 API → get_engine() |
+| `use-pipeline.ts` | SSE API키, esRef, retry 캐시 |
+| `use-api-keys.ts` | ApiError.status retry |
+| `pipelines/[id]/page.tsx` | video_url XSS |
+| `settings/page.tsx` | console.error 제거, aria-label |
+| `app-sidebar.tsx` | signOut API키 삭제 |
+| `auth.ts` | signIn 경고 로그 |
 
----
+### 커밋 `3336be3` + `d4b6063` — Baseline UI
 
-## 6. 주요 파일 경로
-
-```
-packages/frontend/src/
-  lib/auth.ts                          ← NextAuth 설정 (Kakao + Bypass)
-  proxy.ts                             ← Next.js 미들웨어 (라우트 보호)
-  app/login/page.tsx                   ← 로그인 페이지
-  app/(marketing)/layout.tsx           ← 푸터 사업자 정보
-  app/(app)/billing/success/page.tsx   ← Toss 결제 성공 콜백
-  hooks/use-billing.ts                 ← 결제 훅 (useTossCheckout)
-
-packages/api/yaa_app/api/routes/
-  billing.py                           ← Toss + Stripe 결제 API
-
-docs/
-  TOSS_PAYMENTS_INTEGRATION.md         ← PG사 전달용 명세서
-
-Dockerfile.prod                        ← 프로덕션 Docker 이미지
-entrypoint.sh                          ← API 서버 시작 스크립트
-worker-entrypoint.sh                   ← Arq 워커 시작 스크립트
-```
-
----
-
-## 7. 결제 플로우 요약
-
-```
-설정 → useTossCheckout 버튼 클릭
-  → POST /api/v1/billing/toss/checkout (플랜 선택)
-  → Toss SDK requestPayment() 팝업
-  → 결제 완료 → /billing/success
-  → POST /api/v1/billing/toss/confirm (서버 승인)
-  → DB 플랜 업데이트
-```
-
-**요금제:**
-- Pro: ₩29,000/월
-- Enterprise: ₩99,000/월
+| 파일 | 변경 |
+|------|------|
+| `page.tsx` (dashboard) | gradient/glow 제거, tabular-nums, text-balance |
+| `app-sidebar.tsx` | glow shadow 제거, size-* |
+| `pipelines/page.tsx` | glow 제거, text-balance |
+| `pipelines/[id]/page.tsx` | text-balance, aria-label |
+| `pipelines/new/page.tsx` | text-balance, aria-label, size-* |
+| `channels/page.tsx` | text-balance, text-pretty |
+| `competitors/page.tsx` | confirm→AlertDialog, aria-label, size-* |
+| `settings/page.tsx` | text-balance, text-pretty, aria-label, size-* |
+| `onboarding/page.tsx` | 100vh→100dvh |
+| `login/page.tsx` | min-h-dvh, size-* |
+| `guide/page.tsx` | text-balance, text-pretty |
