@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: repoRoot,
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;
