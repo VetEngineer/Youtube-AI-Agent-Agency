@@ -142,20 +142,36 @@
 **목표**: Rust 커맨드, Docker 제어, 시스템 트레이 구현
 
 ### 체크리스트
-- [ ] `src-tauri/src/commands/backend.rs` (Docker 제어)
+- [x] `src-tauri/src/commands/backend.rs` (Docker 제어)
   - `check_docker_available()`
   - `start_local_backend()`
   - `stop_local_backend()`
   - `get_local_backend_status()`
-- [ ] `src-tauri/src/commands/file_system.rs` (파일 다이얼로그)
-- [ ] `src-tauri/src/tray/mod.rs` (시스템 트레이)
-- [ ] `src-tauri/resources/docker-compose.desktop.yml`
-- [ ] Settings 페이지 백엔드 연결 탭 추가
-- [ ] `src/providers/BackendProvider.tsx` (원격/로컬 모드 전환)
+- [x] `src-tauri/src/commands/file_system.rs` (파일 다이얼로그)
+- [x] `src-tauri/src/tray/mod.rs` (시스템 트레이)
+- [x] `src-tauri/resources/docker-compose.desktop.yml`
+- [x] Settings 페이지 백엔드 연결 탭 추가
+- [x] `src/providers/BackendProvider.tsx` (원격/로컬 모드 전환)
 
-### 상태: ⏳ 대기
-### 완료일: -
-### 리뷰 결과: -
+### 상태: ✅ 완료
+### 완료일: 2026-04-10
+### 리뷰 결과: 10회 codex:review 사이클 완료 — **P0 없음 PASS**
+
+### 주요 수정 내역 (10회 사이클)
+- P0: SECRET_KEY 하드코딩 제거 → `generate_local_secret()` 런타임 생성 (`/dev/urandom`, Windows 폴백)
+- P0: `isLocalUrl` 127.0.0.1 + ::1 포함 (localhost만 체크하던 버그 수정)
+- P1: BackendProvider `init()` → `onUrlChange` 호출 제거 (AuthProvider가 URL 초기화 담당)
+- P1: `isMountedRef` 레이스 컨디션 → effect-local `cancelled` 변수 패턴
+- P1: BackendProvider 독립 store 싱글톤 중복 → `tauri-store.ts` 통합
+- P2: BackendProvider `apiKey` prop 제거
+- P3: `aria-pressed` → `role="radio"` + `aria-checked` 접근성 수정
+
+### 아키텍처 결정사항
+- `clearAuthForBackendSwitch`: 백엔드 전환 시 세션 완전 초기화 (크로스 오염 방지)
+- `remote_backend_url` 전용 store 키 — 원격 인증 시에만 저장, 로컬 모드 전환과 무관
+- Docker 미설치 시 local 모드 → remote 자동 폴백
+- `onUrlChangeRef` 패턴: effect deps 없이 최신 콜백 참조
+- `http://localhost` CSP 허용: `connect-src 'self' https: http://localhost:8000`
 
 ---
 
@@ -190,3 +206,6 @@
 | 2026-04-10 | M3 | 시작 | 컴포넌트 이식 (Next.js → React Router v7) |
 | 2026-04-10 | M3 | 리뷰 10차 | **P0 없음 PASS** — 훅/SSE/라우팅/컴포넌트 전반 |
 | 2026-04-10 | M3 | 완료 | tsc + vite build 통과 |
+| 2026-04-10 | M4 | 시작 | Tauri 네이티브 기능 구현 시작 |
+| 2026-04-10 | M4 | 리뷰 10차 | **P0 없음 PASS** — Docker 제어/트레이/백엔드 모드 전반 |
+| 2026-04-10 | M4 | 완료 | cargo check + tsc + vite build 전체 통과 |
