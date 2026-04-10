@@ -6,6 +6,25 @@ services:
     volumes:
       - yaa_redis_data:/data
 
+  frontend:
+    build:
+      context: ./packages/frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://ytai.hakhamsolution.co.kr/api/v1
+    image: yaa-frontend:latest
+    container_name: yaa-frontend
+    restart: unless-stopped
+    env_file:
+      - .env.oracle
+    environment:
+      - NEXTAUTH_URL=https://ytai.hakhamsolution.co.kr
+      - NEXT_PUBLIC_API_BASE_URL=https://ytai.hakhamsolution.co.kr/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
   api:
     build:
       context: .

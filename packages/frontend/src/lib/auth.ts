@@ -101,7 +101,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 if (process.env.INTERNAL_API_SECRET) {
                     headers['X-Internal-Secret'] = process.env.INTERNAL_API_SECRET;
                 }
-                await fetch(`${API_BASE_URL}/users/oauth/callback`, {
+                const res = await fetch(`${API_BASE_URL}/users/oauth/callback`, {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
@@ -112,6 +112,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         provider_account_id: account?.providerAccountId,
                     }),
                 });
+                if (res.ok) {
+                    const data = await res.json();
+                    (user as Record<string, unknown>).is_admin = data.is_admin ?? false;
+                }
             } catch (err) {
                 // 프로덕션에서 백엔드 연결 실패 시 경고 로그
                 console.warn("Backend user sync failed:", err);
@@ -127,6 +131,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 token.picture = user.image;
                 token.provider = account?.provider;
                 token.isBypass = account?.provider === 'bypass';
+                token.isAdmin = (user as Record<string, unknown>).is_admin ?? false;
             }
             return token;
         },
@@ -137,6 +142,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 session.user.email = token.email || '';
                 session.user.name = token.name || '';
                 session.user.image = token.picture as string | undefined;
+                (session.user as Record<string, unknown>).isAdmin = token.isAdmin ?? false;
             }
             return session;
         },

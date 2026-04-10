@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+    Configuration: '서버 설정 오류입니다. 관리자에게 문의하세요.',
+    AccessDenied: '접근이 거부되었습니다.',
+    Verification: '인증 링크가 만료되었습니다.',
+    OAuthSignin: '카카오 로그인 요청 중 오류가 발생했습니다.',
+    OAuthCallback: '카카오 로그인 응답 처리 중 오류가 발생했습니다. Redirect URI 설정을 확인하세요.',
+    OAuthCreateAccount: '계정 생성 중 오류가 발생했습니다.',
+    EmailCreateAccount: '이메일 계정 생성 중 오류가 발생했습니다.',
+    Callback: '로그인 콜백 처리 중 오류가 발생했습니다.',
+    Default: '로그인 중 오류가 발생했습니다. 다시 시도해주세요.',
+};
+
 export default function LoginPage() {
+    const searchParams = useSearchParams();
+    const authError = searchParams.get('error');
     const [bypassOpen, setBypassOpen] = useState(false);
     const [email, setEmail] = useState('');
     const [token, setToken] = useState('');
@@ -59,6 +74,16 @@ export default function LoginPage() {
                     </CardHeader>
 
                     <CardContent className="space-y-3">
+                        {/* OAuth 에러 표시 */}
+                        {authError && (
+                            <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                                {AUTH_ERROR_MESSAGES[authError] ?? AUTH_ERROR_MESSAGES.Default}
+                                {process.env.NODE_ENV === 'development' && (
+                                    <span className="ml-1 font-mono opacity-70">[{authError}]</span>
+                                )}
+                            </div>
+                        )}
+
                         {/* 카카오 로그인 */}
                         <Button
                             className="w-full font-semibold"

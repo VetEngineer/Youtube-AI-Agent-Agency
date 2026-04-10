@@ -39,6 +39,7 @@ class UserResponse(BaseModel):
     provider: str
     plan: str
     is_active: bool
+    is_admin: bool = False
     workspace_id: str | None = None
 
 
@@ -86,6 +87,11 @@ async def oauth_callback(
     user_repo = UserRepository(session)
     ws_repo = WorkspaceRepository(session)
 
+    # 관리자 이메일 목록 파싱
+    admin_emails: set[str] = set()
+    if settings.admin_emails:
+        admin_emails = {e.strip().lower() for e in settings.admin_emails.split(",") if e.strip()}
+
     user, created = await user_repo.get_or_create_by_oauth(
         email=request.email,
         name=request.name,
@@ -93,6 +99,13 @@ async def oauth_callback(
         provider=request.provider,
         provider_account_id=request.provider_account_id,
     )
+
+    # 관리자 이메일이면 is_admin=True 동기화
+    should_be_admin = request.email.lower() in admin_emails
+    if user.is_admin != should_be_admin:
+        await user_repo.update(user.id, is_admin=should_be_admin)
+        user.is_admin = should_be_admin
+        logger.info("관리자 권한 업데이트: email=%s, is_admin=%s", user.email, should_be_admin)
 
     workspace_id: str | None = None
     if created:
@@ -117,6 +130,7 @@ async def oauth_callback(
         provider=user.provider,
         plan=user.plan,
         is_active=user.is_active,
+        is_admin=user.is_admin,
         workspace_id=workspace_id,
     )
 
@@ -143,6 +157,7 @@ async def get_current_user(
         provider=user.provider,
         plan=user.plan,
         is_active=user.is_active,
+        is_admin=user.is_admin,
         workspace_id=auth.workspace_id,
     )
 

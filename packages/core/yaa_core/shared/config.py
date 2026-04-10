@@ -68,6 +68,7 @@ class AppSettings(BaseSettings):
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
     internal_api_secret: str = ""  # NextAuth ↔ FastAPI 내부 통신 시크릿
+    admin_emails: str = ""  # 관리자 이메일 목록 (쉼표 구분): "a@b.com,c@d.com"
     encryption_key: str = ""  # Fernet 대칭 암호화 키 (API 키 암호화용)
 
     # Rate Limiting

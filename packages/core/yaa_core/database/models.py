@@ -27,6 +27,7 @@ class UserModel(Base):
     password_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
     plan: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
@@ -44,6 +45,7 @@ class UserModel(Base):
             "provider": self.provider,
             "plan": self.plan,
             "is_active": self.is_active,
+            "is_admin": self.is_admin,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
