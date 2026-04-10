@@ -74,7 +74,19 @@ async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Pr
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, `API 오류 (${response.status})`)
+    const errorText = await response.text().catch(() => '')
+    let message = `API 오류 (${response.status})`
+    if (errorText) {
+      try {
+        const json = JSON.parse(errorText) as { detail?: string; message?: string }
+        if (json.detail) message = json.detail
+        else if (json.message) message = json.message
+      } catch {
+        // JSON이 아니면 원문 사용 (길이 제한)
+        if (errorText.length < 200) message = errorText
+      }
+    }
+    throw new ApiError(response.status, message)
   }
 
   if (response.status === 204) return undefined as T
@@ -89,7 +101,8 @@ async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Pr
 }
 
 export const api = {
-  get: <T>(endpoint: string) => fetchWithAuth<T>(endpoint, { method: 'GET' }),
+  get: <T>(endpoint: string, signal?: AbortSignal) =>
+    fetchWithAuth<T>(endpoint, { method: 'GET', signal }),
   post: <T>(endpoint: string, body: unknown) =>
     fetchWithAuth<T>(endpoint, { method: 'POST', body: JSON.stringify(body) }),
   put: <T>(endpoint: string, body: unknown) =>

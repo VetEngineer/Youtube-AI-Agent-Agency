@@ -17,6 +17,11 @@ export default function OnboardingPage(): JSX.Element {
   const [step, setStep] = useState<Step>(1)
   const [backendUrl, setBackendUrl] = useState(contextBackendUrl)
   const [apiKey, setApiKeyInput] = useState('')
+
+  // Tauri store init 완료 후 저장된 URL 동기화
+  useEffect(() => {
+    setBackendUrl(contextBackendUrl)
+  }, [contextBackendUrl])
   const [outputDir, setOutputDirState] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

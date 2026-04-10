@@ -1,27 +1,216 @@
 import { type JSX } from 'react'
-import { useAuth } from '@/providers/AuthProvider'
+import { Link } from 'react-router-dom'
+import { QuotaBadge } from '@/components/quota-badge'
+import { useDashboardSummary, type PipelineRunSummary } from '@/hooks/use-dashboard'
 import { Button } from '@/components/ui/button'
+import { StatusBadge } from '@/components/pipeline/StatusBadge'
+import { Plus, Play, CheckCircle, XCircle, Clock, Rocket, BookOpen, Settings } from 'lucide-react'
+import { ApiError } from '@/lib/api'
+
+function formatDuration(seconds: number | null): string {
+  if (seconds === null) return '-'
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`
+}
 
 export default function DashboardPage(): JSX.Element {
-  const { userInfo, clearApiKey } = useAuth()
+  const { data: summary, isLoading, error, refetch } = useDashboardSummary()
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <div className="h-9 w-40 rounded bg-muted/20 animate-pulse" />
+          <div className="h-10 w-36 rounded bg-muted/20 animate-pulse" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-xl bg-muted/20 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    const isAuthError = error instanceof ApiError && (error.status === 401 || error.status === 403)
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        {isAuthError ? (
+          <>
+            <Settings className="h-12 w-12 text-yellow-400 mb-4" />
+            <h3 className="text-lg font-semibold">API 키가 설정되지 않았습니다</h3>
+            <p className="text-sm text-muted-foreground mt-1">대시보드를 사용하려면 먼저 API 키를 설정해 주세요.</p>
+            <Button asChild className="mt-4">
+              <Link to="/settings">API 키 설정하기</Link>
+            </Button>
+          </>
+        ) : (
+          <>
+            <XCircle className="h-12 w-12 text-red-400 mb-4" />
+            <h3 className="text-lg font-semibold">Failed to load dashboard</h3>
+            <p className="text-sm text-muted-foreground mt-1">Please check your API connection and try again.</p>
+            <Button variant="outline" className="mt-4" onClick={() => void refetch()}>재시도</Button>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  const stats = summary ?? {
+    total_runs: 0,
+    active_runs: 0,
+    success_runs: 0,
+    failed_runs: 0,
+    avg_duration_sec: null,
+    estimated_cost_usd: null,
+    recent_runs: [],
+  }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background">
-      <div className="text-center space-y-4">
-        <h1 className="text-3xl font-semibold text-foreground text-balance">
-          YouTube AI Agent Agency
-        </h1>
-        {userInfo && (
-          <p className="text-muted-foreground">
-            {userInfo.email}
-          </p>
-        )}
-        <p className="text-sm text-muted-foreground">
-          M3: 컴포넌트 이식 예정
-        </p>
-        <Button variant="outline" size="sm" onClick={() => { void clearApiKey() }}>
-          로그아웃
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold text-balance">Dashboard</h2>
+        <Button asChild>
+          <Link to="/pipelines/new">
+            <Plus className="mr-2 h-4 w-4" /> Create Pipeline
+          </Link>
         </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Total Runs */}
+        <div className="rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+          <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+            <h3 className="text-sm font-medium">Total Runs</h3>
+            <Play className="h-4 w-4 text-blue-400" />
+          </div>
+          <div className="p-6 pt-0">
+            <div className="tabular-nums text-3xl font-bold">{stats.total_runs}</div>
+            <p className="text-xs text-muted-foreground">전체 파이프라인 실행</p>
+          </div>
+        </div>
+
+        {/* Active */}
+        <div className="rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+          <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+            <h3 className="text-sm font-medium">Active</h3>
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+            </span>
+          </div>
+          <div className="p-6 pt-0">
+            <div className="tabular-nums text-3xl font-bold">{stats.active_runs}</div>
+            <p className="text-xs text-muted-foreground">현재 실행 중</p>
+          </div>
+        </div>
+
+        {/* Successful */}
+        <div className="rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+          <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+            <h3 className="text-sm font-medium">Successful</h3>
+            <CheckCircle className="h-4 w-4 text-green-400" />
+          </div>
+          <div className="p-6 pt-0">
+            <div className="tabular-nums text-3xl font-bold">{stats.success_runs}</div>
+            <p className="text-xs text-muted-foreground">완료 성공</p>
+          </div>
+        </div>
+
+        {/* Failed */}
+        <div className="rounded-xl border border-border bg-card text-card-foreground shadow-sm">
+          <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+            <h3 className="text-sm font-medium">Failed</h3>
+            <XCircle className="h-4 w-4 text-red-400" />
+          </div>
+          <div className="p-6 pt-0">
+            <div className="tabular-nums text-3xl font-bold">{stats.failed_runs}</div>
+            <p className="text-xs text-muted-foreground">주의 필요</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <div className="col-span-4 rounded-xl border bg-card text-card-foreground shadow">
+          <div className="p-6">
+            <h3 className="font-semibold leading-none text-balance">Recent Activity</h3>
+            <p className="text-sm text-muted-foreground text-pretty">Latest pipeline executions</p>
+          </div>
+          <div className="p-6 pt-0">
+            <div className="space-y-4">
+              {stats.recent_runs && stats.recent_runs.length > 0 ? (
+                stats.recent_runs.map((run: PipelineRunSummary) => (
+                  <Link
+                    key={run.run_id}
+                    to={`/pipelines/${run.run_id}`}
+                    className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium leading-none">{run.topic}</p>
+                      <p className="text-xs text-muted-foreground">{run.channel_id}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <StatusBadge status={run.status} />
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(run.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="flex flex-col items-center gap-4 py-10 text-center">
+                  <div className="mb-2">
+                    <div className="flex size-16 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
+                      <Rocket className="size-7 text-primary" />
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">아직 실행된 파이프라인이 없습니다.</p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    <Button size="sm" asChild>
+                      <Link to="/pipelines/new">
+                        <Plus className="mr-1 h-3 w-3" /> 첫 파이프라인 만들기
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to="/guide">
+                        <BookOpen className="mr-1 h-3 w-3" /> 사용 가이드 보기
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="col-span-3 rounded-xl border bg-card text-card-foreground shadow">
+          <div className="p-6">
+            <h3 className="font-semibold leading-none text-balance">Performance</h3>
+            <p className="text-sm text-muted-foreground text-pretty">Average execution metrics</p>
+          </div>
+          <div className="p-6 pt-0 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">Avg. Duration</span>
+              </div>
+              <span className="text-sm font-medium">{formatDuration(stats.avg_duration_sec)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Success Rate</span>
+              <span className="text-sm font-medium">
+                {stats.total_runs > 0
+                  ? `${Math.round((stats.success_runs / stats.total_runs) * 100)}%`
+                  : '-'}
+              </span>
+            </div>
+            <div className="border-t pt-3">
+              <QuotaBadge />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

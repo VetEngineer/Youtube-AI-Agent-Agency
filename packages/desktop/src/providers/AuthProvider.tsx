@@ -178,8 +178,9 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
           clearInMemoryKey()
           setState({ apiKey: null, isAuthenticated: false, isLoading: false, userInfo: null, hasOnboarded: onboarded })
         } else {
-          // Network/server failure — keep stored key for retry on next launch
-          setState({ apiKey: null, isAuthenticated: false, isLoading: false, userInfo: null, hasOnboarded: onboarded })
+          // Network/server failure — key may still be valid; keep authenticated with stored key
+          setInMemoryKey(storedKey, storedUrl)
+          setState({ apiKey: storedKey, isAuthenticated: true, isLoading: false, userInfo: null, hasOnboarded: onboarded })
         }
       } catch {
         setState((prev) => ({ ...prev, isLoading: false }))

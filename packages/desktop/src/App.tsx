@@ -1,10 +1,18 @@
-import { Component, useEffect, useMemo, type JSX, type ReactNode } from 'react'
+import { Component, useEffect, useMemo, type JSX, type ReactNode, type ErrorInfo } from 'react'
 import { createMemoryRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/providers/AuthProvider'
 import { Button } from '@/components/ui/button'
+import AppLayout from '@/components/AppLayout'
 import LoginPage from '@/pages/LoginPage'
 import OnboardingPage from '@/pages/OnboardingPage'
 import DashboardPage from '@/pages/DashboardPage'
+import PipelinesPage from '@/pages/PipelinesPage'
+import PipelineNewPage from '@/pages/PipelineNewPage'
+import PipelineDetailPage from '@/pages/PipelineDetailPage'
+import ChannelsPage from '@/pages/ChannelsPage'
+import CompetitorsPage from '@/pages/CompetitorsPage'
+import SettingsPage from '@/pages/SettingsPage'
+import GuidePage from '@/pages/GuidePage'
 
 // ─── Error boundary — prevents blank screen on render crash ─────────────────
 interface ErrorBoundaryState { error: Error | null }
@@ -14,6 +22,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { error }
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[ErrorBoundary] 렌더링 오류:', error, info)
   }
 
   render() {
@@ -85,15 +97,27 @@ function App(): JSX.Element {
     { path: '/', element: <RootRedirect /> },
     { path: '/onboarding', element: <OnboardingPage /> },
     { path: '/login', element: <LoginPage /> },
-    { path: '/dashboard', element: <RequireAuth><DashboardPage /></RequireAuth> },
+    {
+      element: <RequireAuth><AppLayout /></RequireAuth>,
+      children: [
+        { path: '/dashboard', element: <DashboardPage /> },
+        { path: '/pipelines', element: <PipelinesPage /> },
+        { path: '/pipelines/new', element: <PipelineNewPage /> },
+        { path: '/pipelines/:id', element: <PipelineDetailPage /> },
+        { path: '/channels', element: <ChannelsPage /> },
+        { path: '/competitors', element: <CompetitorsPage /> },
+        { path: '/settings', element: <SettingsPage /> },
+        { path: '/guide', element: <GuidePage /> },
+      ],
+    },
   ]), [])
 
   return (
-    <ErrorBoundary>
-      <AuthProvider>
+    <AuthProvider>
+      <ErrorBoundary>
         <RouterProvider router={router} />
-      </AuthProvider>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </AuthProvider>
   )
 }
 

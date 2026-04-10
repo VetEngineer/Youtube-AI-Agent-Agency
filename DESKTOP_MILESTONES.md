@@ -110,18 +110,31 @@
 **목표**: 기존 shadcn/ui 컴포넌트 및 훅 이식, 라우팅 구성
 
 ### 체크리스트
-- [ ] shadcn/ui 컴포넌트 전체 복사 (`components/ui/`)
-- [ ] 훅 이식 (`use-pipeline`, `use-channels`, `use-competitors` 등)
-- [ ] `use-pipeline.ts`: `useRouter` → `useNavigate` 1줄 수정
-- [ ] `app-sidebar.tsx`: `useSession` → `useAuth` 교체
-- [ ] SSE 스트리밍: `EventSource` → `fetch ReadableStream`
-- [ ] 페이지 이식 (Dashboard, Pipelines, Channels, Competitors, Settings)
-- [ ] React Router v7 라우팅 구성 (`src/App.tsx`)
-- [ ] `globals.css` 이식
+- [x] shadcn/ui 컴포넌트 전체 복사 (`components/ui/`)
+- [x] 훅 이식 (`use-pipeline`, `use-channels`, `use-competitors` 등)
+- [x] `use-pipeline.ts`: `useRouter` → `useNavigate` 1줄 수정
+- [x] `app-sidebar.tsx`: `useSession` → `useAuth` 교체
+- [x] SSE 스트리밍: `EventSource` → `fetch ReadableStream` (retryKey + reconnectTimerRef 패턴)
+- [x] 페이지 이식 (Dashboard, Pipelines, Channels, Competitors, Settings)
+- [x] React Router v7 라우팅 구성 (`src/App.tsx`)
+- [x] `globals.css` 이식
 
-### 상태: ⏳ 대기
-### 완료일: -
-### 리뷰 결과: -
+### 상태: ✅ 완료
+### 완료일: 2026-04-10
+### 리뷰 결과: 10회 codex:review 사이클 완료 — **P0 없음 PASS**
+
+### 주요 수정 내역 (10회 사이클)
+- `isMountedRef = useRef(false)` + 효과 내 `= true` 할당 패턴 (6개 훅)
+- SSE 재연결: `retryKey` state + `reconnectTimerRef` 지수 백오프 (최대 5회)
+- `AbortController` 패턴 (useCompetitor 경쟁 조건 방지)
+- `StatusBadge` 공통 컴포넌트 추출 (Dashboard/Pipelines/PipelineDetail 통합)
+- `PipelineRunSummary.status`에 `'cancelled'` 추가
+- `SettingsPage` IntegrationsSection 단일 `useUpdateIntegrations(refetch)` 인스턴스
+- Tailwind v4 spacing 문법: `(--spacing(4))` → `var(--spacing-4)`
+- `radix-ui` v1.4.3 호환성 유지 (`@radix-ui/react-*` 스코프 임포트)
+- `sidebar.tsx` cookie → localStorage (Tauri WebView 환경)
+- ErrorBoundary `componentDidCatch` 추가
+- `app-sidebar.tsx` `clearApiKey` 에러 처리 단순화 (console.error 제거)
 
 ---
 
@@ -174,3 +187,6 @@
 | 2026-04-07 | M2 | 시작 | 인증 레이어 구현 시작 |
 | 2026-04-10 | M2 | 리뷰 10차 | **96+/100 PASS** — 보안/접근성/아키텍처 전반 |
 | 2026-04-10 | M2 | 완료 | tsc + vite build 통과, lint/CI 이상 없음 |
+| 2026-04-10 | M3 | 시작 | 컴포넌트 이식 (Next.js → React Router v7) |
+| 2026-04-10 | M3 | 리뷰 10차 | **P0 없음 PASS** — 훅/SSE/라우팅/컴포넌트 전반 |
+| 2026-04-10 | M3 | 완료 | tsc + vite build 통과 |

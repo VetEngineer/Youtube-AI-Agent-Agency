@@ -115,3 +115,7 @@ packages/
 - **ChannelRegistry:** YAML 기반 채널 설정 관리 (파일시스템 + 캐싱)
 - **Alembic:** `packages/api/alembic/`에서 DB 스키마 마이그레이션 관리
 - **UsageCollector:** LangChain 콜백 기반 LLM 토큰/비용 인메모리 수집 → 파이프라인 완료 후 DB 일괄 저장
+
+## 컨텍스트 관리
+
+sub-agent를 최대한 활용해서 컨텍스트를 평균 40%, 최대 60%를 넘지 않도록 관리한다.
