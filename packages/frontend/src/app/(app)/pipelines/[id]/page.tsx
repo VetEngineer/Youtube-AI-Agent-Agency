@@ -5,7 +5,19 @@ import { useParams } from 'next/navigation';
 import { usePipeline, useCancelPipeline, useRetryPipeline, usePipelineSSE, PIPELINE_STAGES } from '@/hooks/use-pipeline';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { ArrowLeft, Plus, RotateCcw, ExternalLink, CheckCircle, Circle, Loader2, XCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 function getStageStatus(currentAgent: string | null, stageKey: string, pipelineStatus: string): 'completed' | 'current' | 'pending' | 'failed' {
     if (pipelineStatus === 'failed') {
@@ -119,17 +131,32 @@ export default function PipelineDetailPage() {
                 <div className="flex items-center gap-3">
                     {getStatusBadge(pipeline.status)}
                     {(pipeline.status === 'pending' || pipeline.status === 'running') && (
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => cancelMutation.mutate(id)}
-                            disabled={cancelMutation.isPending}
-                        >
-                            {cancelMutation.isPending
-                                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                : <XCircle className="mr-2 h-4 w-4" />}
-                            Cancel
-                        </Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    disabled={cancelMutation.isPending}
+                                >
+                                    {cancelMutation.isPending
+                                        ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        : <XCircle className="mr-2 h-4 w-4" />}
+                                    {cancelMutation.isPending ? '취소 중...' : 'Cancel'}
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>파이프라인을 취소하시겠습니까?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        이 작업은 되돌릴 수 없습니다. 진행 중인 파이프라인이 중단됩니다.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>돌아가기</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => cancelMutation.mutate(id)}>취소 확인</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     )}
                     {(pipeline.status === 'completed' || pipeline.status === 'failed') && (
                         <Button variant="outline" size="sm" asChild>
@@ -153,15 +180,15 @@ export default function PipelineDetailPage() {
                                         <div className="flex flex-col items-center">
                                             <StageIcon status={status} />
                                             {index < PIPELINE_STAGES.length - 1 && (
-                                                <div className={`w-0.5 h-8 ${status === 'completed' ? 'bg-green-500' : 'bg-muted'}`} />
+                                                <div className={cn("w-0.5 h-8", status === 'completed' ? 'bg-green-500' : 'bg-muted')} />
                                             )}
                                         </div>
-                                        <div className={`flex-1 py-2 ${status === 'current' ? 'font-medium' : ''}`}>
+                                        <div className={cn("flex-1 py-2", status === 'current' && 'font-medium')}>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-lg">{stage.icon}</span>
                                                 <span>{stage.label}</span>
                                                 {status === 'current' && (
-                                                    <span className="text-xs text-blue-400 animate-pulse">In progress...</span>
+                                                    <span className="text-xs text-blue-400">In progress...</span>
                                                 )}
                                             </div>
                                         </div>
@@ -247,7 +274,7 @@ export default function PipelineDetailPage() {
                                 {pipeline.result.script && (
                                     <div className="p-3 border rounded-md text-sm">
                                         <p className="font-medium mb-2">Script Preview:</p>
-                                        <p className={`text-muted-foreground whitespace-pre-wrap ${scriptExpanded ? '' : 'max-h-32 overflow-hidden'}`}>
+                                        <p className={cn("text-muted-foreground whitespace-pre-wrap", !scriptExpanded && "max-h-32 overflow-hidden")}>
                                             {scriptExpanded
                                                 ? pipeline.result.script
                                                 : pipeline.result.script.slice(0, 200) + (pipeline.result.script.length > 200 ? '...' : '')

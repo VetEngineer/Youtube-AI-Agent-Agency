@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -644,9 +645,10 @@ function PlanCard({
 
     return (
         <div
-            className={`rounded-lg border p-4 space-y-3 ${
-                isCurrent ? 'border-primary bg-primary/5' : ''
-            }`}
+            className={cn(
+                "rounded-lg border p-4 space-y-3",
+                isCurrent && 'border-primary bg-primary/5'
+            )}
         >
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

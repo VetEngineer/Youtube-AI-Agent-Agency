@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -107,9 +108,9 @@ export default function ChannelsPage() {
             {!isLoading && !error && channels.length > 0 && (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {channels.map((channel) => (
-                        <Card key={channel.channel_id} className="bg-card/50 backdrop-blur-sm border-white/5">
+                        <Card key={channel.channel_id} className="bg-card border-white/5">
                             <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                                <div className={`h-12 w-12 rounded-full ${getAvatarBg(channel.category)} flex items-center justify-center text-white font-bold text-lg`}>
+                                <div className={cn("h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg", getAvatarBg(channel.category))}>
                                     {channel.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div>

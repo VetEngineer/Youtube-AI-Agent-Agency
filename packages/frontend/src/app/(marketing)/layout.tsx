@@ -7,8 +7,8 @@ export default function MarketingLayout({
     children: React.ReactNode;
 }) {
     return (
-        <div className="flex min-h-screen flex-col bg-background">
-            <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-sm">
+        <div className="flex min-h-dvh flex-col bg-background">
+            <header className="sticky top-0 z-50 border-b border-border/50 bg-background pt-[env(safe-area-inset-top)]">
                 <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
                     <Link href="/landing" className="flex items-center gap-2">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
@@ -35,7 +35,7 @@ export default function MarketingLayout({
                         >
                             로그인
                         </Link>
-                        <Button asChild size="sm" className="glow-red">
+                        <Button asChild size="sm">
                             <Link href="/login">무료로 시작하기</Link>
                         </Button>
                     </nav>

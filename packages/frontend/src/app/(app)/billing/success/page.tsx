@@ -2,6 +2,7 @@
 
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
@@ -105,9 +106,10 @@ export default function BillingSuccessPage() {
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
             <div
-                className={`flex items-center justify-center w-16 h-16 rounded-full ${
+                className={cn(
+                    "flex items-center justify-center size-16 rounded-full",
                     displayError ? 'bg-red-500/10' : 'bg-green-500/10'
-                }`}
+                )}
             >
                 {displayError ? (
                     <AlertCircle className="h-8 w-8 text-red-500" />
@@ -116,7 +118,7 @@ export default function BillingSuccessPage() {
                 )}
             </div>
             <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">
+                <h2 className="text-2xl font-bold text-balance">
                     {displayError ? '결제 승인이 필요합니다' : '결제가 완료되었습니다!'}
                 </h2>
                 <p className="text-muted-foreground">

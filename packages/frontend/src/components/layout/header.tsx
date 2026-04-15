@@ -12,7 +12,7 @@ export function Header({ title = "Youtube Agent Agency" }: HeaderProps) {
     <header className="flex h-16 shrink-0 items-center border-b border-border/50 px-4">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mx-4 h-6" />
-      <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+      <h1 className="text-lg font-semibold">{title}</h1>
     </header>
   );
 }

@@ -1,7 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
     Card,
     CardContent,
@@ -139,19 +141,19 @@ function ChannelDetailModal({
                         {/* 채널 통계 카드 */}
                         <div className="grid grid-cols-3 gap-3">
                             <div className="rounded-lg border p-3 text-center">
-                                <p className="text-2xl font-bold">
+                                <p className="text-2xl font-bold tabular-nums">
                                     {formatNumber(data.channel.subscriber_count)}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1">구독자</p>
                             </div>
                             <div className="rounded-lg border p-3 text-center">
-                                <p className="text-2xl font-bold">
+                                <p className="text-2xl font-bold tabular-nums">
                                     {formatNumber(data.channel.video_count)}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1">총 영상</p>
                             </div>
                             <div className="rounded-lg border p-3 text-center">
-                                <p className="text-2xl font-bold">
+                                <p className="text-2xl font-bold tabular-nums">
                                     {data.channel.last_crawled_at
                                         ? formatDate(data.channel.last_crawled_at)
                                         : "-"}
@@ -233,13 +235,13 @@ function ChannelDetailModal({
                                                             </div>
                                                         )}
                                                     </TableCell>
-                                                    <TableCell className="text-right text-sm">
+                                                    <TableCell className="text-right text-sm tabular-nums">
                                                         {formatNumber(video.view_count)}
                                                     </TableCell>
-                                                    <TableCell className="text-right text-sm">
+                                                    <TableCell className="text-right text-sm tabular-nums">
                                                         {formatNumber(video.like_count)}
                                                     </TableCell>
-                                                    <TableCell className="text-right text-sm">
+                                                    <TableCell className="text-right text-sm tabular-nums">
                                                         {formatNumber(video.comment_count)}
                                                     </TableCell>
                                                     <TableCell className="text-right text-sm text-muted-foreground">
@@ -274,7 +276,7 @@ function CompetitorCard({
 
     return (
         <>
-            <Card className="bg-card/50 backdrop-blur-sm border-primary/50 relative overflow-hidden">
+            <Card className="bg-card border-primary/50 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
                     <TrendingUp className="size-32" />
                 </div>
@@ -301,13 +303,13 @@ function CompetitorCard({
                 <CardContent className="space-y-3">
                     <div className="grid grid-cols-2 gap-2 text-sm">
                         <div className="rounded border p-2 text-center">
-                            <p className="font-semibold">
+                            <p className="font-semibold tabular-nums">
                                 {formatNumber(competitor.subscriber_count)}
                             </p>
                             <p className="text-xs text-muted-foreground">구독자</p>
                         </div>
                         <div className="rounded border p-2 text-center">
-                            <p className="font-semibold">
+                            <p className="font-semibold tabular-nums">
                                 {formatNumber(competitor.video_count)}
                             </p>
                             <p className="text-xs text-muted-foreground">영상</p>
@@ -492,8 +494,10 @@ export default function CompetitorsPage() {
 
             {/* 로딩 */}
             {isLoading && (
-                <div className="flex items-center justify-center py-12">
-                    <Loader2 className="size-8 animate-spin text-muted-foreground" />
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {[1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-56 rounded-xl" />
+                    ))}
                 </div>
             )}
 
@@ -513,6 +517,9 @@ export default function CompetitorsPage() {
                     <p className="text-sm mt-1">
                         채널 추가 버튼으로 경쟁 채널을 등록하세요.
                     </p>
+                    <Button onClick={() => setAddDialogOpen(true)} className="mt-4">
+                        <Plus className="mr-2 size-4" /> 채널 추가
+                    </Button>
                 </div>
             )}
 

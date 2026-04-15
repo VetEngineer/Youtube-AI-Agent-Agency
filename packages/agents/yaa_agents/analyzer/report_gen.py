@@ -13,6 +13,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from yaa_core.shared.llm_utils import parse_json_from_response
 from yaa_core.shared.models import AnalysisReport, ChannelAnalytics, VideoAnalytics
+from yaa_core.shared.sanitize import sanitize_llm_input
 
 logger = logging.getLogger(__name__)
 
@@ -52,10 +53,11 @@ def _build_analytics_prompt(
     brand_name: str,
 ) -> str:
     """분석 데이터를 LLM 프롬프트로 변환합니다."""
+    safe_brand_name = sanitize_llm_input(brand_name, max_length=200)
     video_stats = "\n".join(_format_video_stats(v) for v in analytics.recent_videos)
 
     return (
-        f"브랜드명: {brand_name}\n"
+        f"브랜드명: {safe_brand_name}\n"
         f"채널 ID: {analytics.channel_id}\n"
         f"구독자 수: {analytics.subscriber_count:,}\n"
         f"총 조회수: {analytics.total_views:,}\n"

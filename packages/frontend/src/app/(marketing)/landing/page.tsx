@@ -90,31 +90,27 @@ export default function LandingPage() {
         <div>
             {/* Hero Section */}
             <section className="relative overflow-hidden py-24 md:py-32">
-                {/* 멀티레이어 글로우 배경 */}
                 <div className="absolute inset-0 -z-10">
-                    <div className="absolute left-1/2 top-0 -translate-x-1/2 h-[600px] w-[900px] rounded-full bg-primary/15 blur-3xl" />
-                    <div className="absolute left-0 top-1/4 h-[400px] w-[500px] rounded-full bg-secondary/10 blur-3xl" />
                     <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border)/0.3)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border)/0.3)_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
                 </div>
                 <div className="mx-auto max-w-4xl px-6 text-center">
                     <Badge variant="secondary" className="mb-6 border-primary/30 gap-1.5">
                         <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
                         </span>
                         6단계 AI 파이프라인
                     </Badge>
-                    <h1 className="mb-6 text-4xl font-bold tracking-tight md:text-6xl">
+                    <h1 className="mb-6 text-4xl font-bold text-balance md:text-6xl">
                         AI로 YouTube 콘텐츠를
                         <br />
-                        <span className="text-gradient-brand">자동으로 생성</span>하세요
+                        <span className="text-primary">자동으로 생성</span>하세요
                     </h1>
-                    <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground">
+                    <p className="mx-auto mb-10 max-w-2xl text-lg text-pretty text-muted-foreground">
                         브랜드 리서치부터 원고 작성, SEO 최적화, 영상 편집, 업로드까지.
                         AI 에이전트가 YouTube 콘텐츠 제작의 전 과정을 자동화합니다.
                     </p>
                     <div className="flex items-center justify-center gap-4 flex-wrap">
-                        <Button asChild size="lg" className="glow-red hover:scale-105 transition-transform">
+                        <Button asChild size="lg">
                             <Link href="/login">무료로 시작하기</Link>
                         </Button>
                         <Button asChild variant="outline" size="lg" className="hover:border-primary/50 transition-colors">
@@ -129,17 +125,16 @@ export default function LandingPage() {
             <section className="border-t border-border/50 bg-muted/30 py-20">
                 <div className="mx-auto max-w-6xl px-6">
                     <div className="mb-12 text-center">
-                        <h2 className="mb-3 text-3xl font-bold tracking-tight">
+                        <h2 className="mb-3 text-3xl font-bold text-balance">
                             6단계 자동화 파이프라인
                         </h2>
-                        <p className="text-muted-foreground">
+                        <p className="text-pretty text-muted-foreground">
                             각 단계를 전문 AI 에이전트가 처리합니다
                         </p>
                     </div>
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                         {pipelineSteps.map((item) => (
-                            <Card key={item.step} className="group relative overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 hover:-translate-y-1 glass-card">
-                                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Card key={item.step} className="group relative overflow-hidden transition-all hover:border-primary/40 glass-card">
                                 <CardHeader>
                                     <div className="mb-2 flex items-center gap-3">
                                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
@@ -166,10 +161,10 @@ export default function LandingPage() {
             <section className="py-20">
                 <div className="mx-auto max-w-4xl px-6">
                     <div className="mb-12 text-center">
-                        <h2 className="mb-3 text-3xl font-bold tracking-tight">
+                        <h2 className="mb-3 text-3xl font-bold text-balance">
                             사용 방법
                         </h2>
-                        <p className="text-muted-foreground">
+                        <p className="text-pretty text-muted-foreground">
                             간단한 4단계로 YouTube 콘텐츠를 자동화하세요
                         </p>
                     </div>

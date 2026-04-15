@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
+from collections import defaultdict
 from datetime import UTC, datetime, timedelta
+from time import time
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from yaa_core.database.engine import get_db_session
 from yaa_core.database.repositories import UserRepository, WorkspaceRepository
@@ -22,6 +25,33 @@ logger = logging.getLogger(__name__)
 _ACCESS_TOKEN_EXPIRE_HOURS = 24
 _REFRESH_TOKEN_EXPIRE_DAYS = 7
 
+# 이메일별 로그인 실패 추적 (인메모리)
+_login_failures: dict[str, list[float]] = defaultdict(list)
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_LOCKOUT_SECONDS = 900  # 15분
+
+
+def _check_login_lockout(email: str) -> None:
+    """로그인 실패 횟수를 확인하고 잠금 상태이면 예외를 발생시킵니다."""
+    now = time()
+    # 만료된 기록 정리
+    _login_failures[email] = [t for t in _login_failures[email] if now - t < _LOGIN_LOCKOUT_SECONDS]
+    if len(_login_failures[email]) >= _LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="로그인 시도 횟수를 초과했습니다. 15분 후 다시 시도하세요.",
+        )
+
+
+def _record_login_failure(email: str) -> None:
+    """로그인 실패를 기록합니다."""
+    _login_failures[email].append(time())
+
+
+def _clear_login_failures(email: str) -> None:
+    """로그인 성공 시 실패 기록을 초기화합니다."""
+    _login_failures.pop(email, None)
+
 
 # ============================================
 # Pydantic 스키마
@@ -32,8 +62,24 @@ class RegisterRequest(BaseModel):
     """회원가입 요청."""
 
     email: str = Field(..., description="이메일 주소")
-    password: str = Field(..., min_length=8, description="최소 8자 이상")
+    password: str = Field(
+        ..., min_length=8, max_length=128,
+        description="최소 8자, 대문자+소문자+숫자+특수문자 포함",
+    )
     name: str | None = Field(None, max_length=200)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_complexity(cls, v: str) -> str:
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("비밀번호에 대문자가 1자 이상 포함되어야 합니다.")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("비밀번호에 소문자가 1자 이상 포함되어야 합니다.")
+        if not re.search(r"\d", v):
+            raise ValueError("비밀번호에 숫자가 1자 이상 포함되어야 합니다.")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("비밀번호에 특수문자가 1자 이상 포함되어야 합니다.")
+        return v
 
 
 class LoginRequest(BaseModel):
@@ -214,12 +260,14 @@ async def login(
 ) -> TokenResponse:
     """이메일/패스워드로 로그인하고 JWT를 발급합니다."""
     _require_jwt_config(settings)
+    _check_login_lockout(body.email)
 
     user_repo = UserRepository(session)
     ws_repo = WorkspaceRepository(session)
 
     user = await user_repo.get_by_email(body.email)
     if user is None or not user.is_active:
+        _record_login_failure(body.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="이메일 또는 패스워드가 올바르지 않습니다.",
@@ -232,15 +280,23 @@ async def login(
         )
 
     if not _verify_password(body.password, user.password_hash):
+        _record_login_failure(body.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="이메일 또는 패스워드가 올바르지 않습니다.",
         )
 
+    # 레거시 SHA-256 해시를 bcrypt로 자동 마이그레이션
+    if not user.password_hash.startswith("$2"):
+        user.password_hash = _hash_password(body.password)
+        await session.flush()
+        logger.info("비밀번호 해시 bcrypt 마이그레이션: user=%s", user.id)
+
     workspaces = await ws_repo.list_by_owner(user.id)
     workspace_id = workspaces[0].id if workspaces else None
 
     logger.info("로그인 성공: email=%s", body.email)
+    _clear_login_failures(body.email)
 
     access_token = _create_jwt(
         {"sub": user.id, "email": user.email, "workspace_id": workspace_id},

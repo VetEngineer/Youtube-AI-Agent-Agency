@@ -7,8 +7,9 @@ import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from yaa_core.shared.logging_config import setup_logging
 
 from yaa_app.api.dependencies import get_settings
@@ -90,8 +91,8 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Request-ID"],
     )
 
     # 감사 로그 미들웨어
@@ -102,6 +103,9 @@ def create_app() -> FastAPI:
 
     # Rate Limiting
     setup_rate_limiting(application)
+
+    # 전역 예외 핸들러 (프로덕션 에러 새니타이징)
+    application.add_exception_handler(Exception, _global_exception_handler)
 
     # 라우터 등록
     application.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
@@ -121,6 +125,23 @@ def create_app() -> FastAPI:
     application.include_router(oauth.router, prefix="/api/v1/oauth", tags=["oauth"])
 
     return application
+
+
+async def _global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """프로덕션 환경에서 내부 에러 상세를 숨기는 전역 예외 핸들러."""
+    logger.error("Unhandled exception: %s %s - %s", request.method, request.url.path, exc)
+    settings = get_settings()
+    if settings.disable_auth:
+        # 개발 환경: 상세 에러 노출
+        return JSONResponse(
+            status_code=500,
+            content={"detail": str(exc)},
+        )
+    # 프로덕션: 일반 메시지만 노출
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "내부 서버 오류가 발생했습니다."},
+    )
 
 
 app = create_app()

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from langchain_core.messages import SystemMessage
 from yaa_core.shared.models import ToneAndManner
+from yaa_core.shared.sanitize import sanitize_llm_input
 
 _CACHE_CONTROL = {"type": "ephemeral"}
 
@@ -115,13 +116,14 @@ def build_user_prompt(
     guidelines: str = "",
 ) -> str:
     """콘텐츠 기획안 기반 유저 프롬프트를 생성합니다."""
+    safe_topic = sanitize_llm_input(topic, max_length=500)
+    safe_notes = sanitize_llm_input(notes, max_length=1000) if notes else "없음"
     keywords_text = ", ".join(keywords) if keywords else "없음"
-    notes_text = notes if notes else "없음"
     base = SCRIPT_USER_PROMPT.format(
-        topic=topic,
+        topic=safe_topic,
         content_type=content_type,
         keywords=keywords_text,
-        notes=notes_text,
+        notes=safe_notes,
     )
     extras: list[str] = []
     if guidelines:
@@ -214,13 +216,15 @@ def build_strategist_user_prompt(
     guidelines: str = "",
 ) -> str:
     """Strategist 유저 프롬프트를 생성합니다."""
+    safe_topic = sanitize_llm_input(topic, max_length=500)
+    safe_notes = sanitize_llm_input(notes, max_length=1000) if notes else "없음"
     keywords_text = ", ".join(keywords) if keywords else "없음"
     guidelines_section = f"\n## 제작 가이드라인\n{guidelines}\n" if guidelines else ""
     return STRATEGIST_USER_PROMPT.format(
-        topic=topic,
+        topic=safe_topic,
         content_type=content_type,
         keywords=keywords_text,
-        notes=notes or "없음",
+        notes=safe_notes,
         guidelines_section=guidelines_section,
     )
 

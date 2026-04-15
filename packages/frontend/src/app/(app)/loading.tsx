@@ -1,9 +1,14 @@
 export default function Loading() {
     return (
-        <div className="flex h-[50vh] w-full items-center justify-center">
-            <div className="flex flex-col items-center gap-2">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                <p className="text-sm text-muted-foreground">Loading dashboard...</p>
+        <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+                <div className="h-9 w-40 rounded bg-muted/20 animate-pulse motion-reduce:animate-none" />
+                <div className="h-10 w-36 rounded bg-muted/20 animate-pulse motion-reduce:animate-none" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-32 rounded-xl bg-muted/20 animate-pulse motion-reduce:animate-none" />
+                ))}
             </div>
         </div>
     )

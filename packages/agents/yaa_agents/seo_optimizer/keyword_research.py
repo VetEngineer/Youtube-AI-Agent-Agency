@@ -12,6 +12,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from yaa_core.shared.llm_utils import parse_json_from_response
 from yaa_core.shared.models import BrandGuide, SEOAnalysis
+from yaa_core.shared.sanitize import sanitize_llm_input
 
 logger = logging.getLogger(__name__)
 
@@ -113,11 +114,12 @@ class KeywordResearcher:
         existing_keywords: list[str],
     ) -> str:
         """LLM에 전달할 사용자 프롬프트를 구성합니다."""
+        safe_topic = sanitize_llm_input(topic, max_length=500)
         audience = brand_guide.target_audience
         brand = brand_guide.brand
 
         parts = [
-            f"## 토픽\n{topic}",
+            f"## 토픽\n{safe_topic}",
             f"## 브랜드 포지셔닝\n{brand.positioning}",
             f"## 타겟 오디언스\n{audience.primary}",
         ]

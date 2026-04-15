@@ -9,6 +9,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from yaa_core.shared.llm_utils import parse_json_from_response
 from yaa_core.shared.models import BrandInfo, CompetitorInfo, TargetAudience
+from yaa_core.shared.sanitize import sanitize_llm_input
 
 from .collector import CollectionResult
 
@@ -51,7 +52,8 @@ class BrandAnalyzer:
         collection: CollectionResult,
     ) -> BrandAnalysisResult:
         """수집된 자료를 분석합니다."""
-        user_prompt = f"""다음은 '{brand_name}' 브랜드에 대해 수집한 자료입니다:
+        safe_brand_name = sanitize_llm_input(brand_name, max_length=200)
+        user_prompt = f"""다음은 '{safe_brand_name}' 브랜드에 대해 수집한 자료입니다:
 
 {collection.combined_text}
 

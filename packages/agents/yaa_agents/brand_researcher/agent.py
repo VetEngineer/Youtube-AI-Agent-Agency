@@ -14,6 +14,7 @@ from pathlib import Path
 from langchain_core.language_models import BaseChatModel
 from yaa_core.shared.config import ChannelRegistry
 from yaa_core.shared.models import BrandGuide
+from yaa_core.shared.sanitize import sanitize_llm_input
 
 from .analyzer import BrandAnalyzer
 from .collector import BrandCollector, CollectedSource, CollectionResult
@@ -108,21 +109,24 @@ class BrandResearcherAgent:
         Returns:
             생성된 BrandGuide
         """
+        # 0. 사용자 입력 새니타이징
+        safe_brand_name = sanitize_llm_input(brand_name, max_length=200)
+
         # 1. 수집 (Collect)
         channel_path = self._registry.get_channel_path(channel_id)
         sources_dir = channel_path / "sources"
 
         collection = await self._collector.collect_all(
-            brand_name=brand_name,
+            brand_name=safe_brand_name,
             channel_sources_dir=sources_dir if sources_dir.exists() else None,
             additional_queries=additional_queries,
         )
 
         # 2. RAG 컨텍스트 보강
-        collection = self._enrich_with_rag(collection, channel_id, brand_name)
+        collection = self._enrich_with_rag(collection, channel_id, safe_brand_name)
 
         # 3. 분석 (Analyze)
-        analysis = await self._analyzer.analyze(brand_name, collection)
+        analysis = await self._analyzer.analyze(safe_brand_name, collection)
 
         # 4. 보이스 설계 (Design)
         voice_result = await self._voice_designer.design(analysis)

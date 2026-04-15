@@ -133,33 +133,18 @@
 
 @layer utilities {
   .glass-card {
-    background: hsl(0 0% 100% / 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid hsl(0 0% 0% / 0.1);
+    background: hsl(var(--card) / 0.95);
+    border: 1px solid hsl(var(--border) / 0.5);
+    border-radius: var(--radius);
   }
-  .dark .glass-card {
-    background: hsl(222 47% 8% / 0.8);
-    border: 1px solid hsl(217 30% 25% / 0.6);
-  }
-  .glass-card-hover {
-    transition: border-color 200ms, box-shadow 200ms, transform 200ms;
+  @media (prefers-reduced-motion: no-preference) {
+    .glass-card-hover {
+      transition: border-color 200ms, box-shadow 200ms, transform 200ms;
+    }
   }
   .glass-card-hover:hover {
-    border-color: hsl(0 90% 60% / 0.3);
-    box-shadow: 0 0 24px hsl(0 90% 60% / 0.08), 0 8px 24px hsl(222 47% 4% / 0.4);
-  }
-  .glow-red {
-    box-shadow: 0 0 20px hsl(0 90% 60% / 0.3), 0 0 60px hsl(0 90% 60% / 0.1);
-  }
-  .glow-blue {
-    box-shadow: 0 0 20px hsl(217 91% 55% / 0.3), 0 0 60px hsl(217 91% 55% / 0.1);
-  }
-  .text-gradient-brand {
-    background: linear-gradient(135deg, hsl(0 90% 60%), hsl(217 91% 65%));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   }
   .font-tabular {
     font-variant-numeric: tabular-nums;
@@ -169,12 +154,15 @@
 
 /* 활성 사이드바 메뉴 강조 */
 [data-sidebar="menu-button"][data-active="true"] {
-  background: hsl(0 90% 60% / 0.15);
-  color: hsl(0 90% 65%);
-  border-left: 2px solid hsl(0 90% 60%);
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+  border-left: 2px solid hsl(var(--primary));
 }
 
-/* 버튼 누름 효과 */
-button:active:not(:disabled) {
-  transform: scale(0.97);
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 from .models import BrandGuide, ChannelSettings
@@ -94,6 +95,22 @@ class AppSettings(BaseSettings):
     rag_persist_dir: str = "./data/chroma"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+    @model_validator(mode="after")
+    def _warn_disable_auth(self) -> AppSettings:
+        if (
+            self.disable_auth
+            and self.database_url
+            and "localhost" not in self.database_url
+            and "sqlite" not in self.database_url
+        ):
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "disable_auth=True가 프로덕션 DB URL과 함께 사용되고 있습니다. "
+                "보안 위험: 모든 인증이 비활성화됩니다."
+            )
+        return self
 
 
 def load_yaml(path: Path) -> dict[str, Any]:

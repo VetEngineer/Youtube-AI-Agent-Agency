@@ -108,7 +108,7 @@ export default function PipelinesPage() {
                     {runs.map((run) => (
                         <div
                             key={run.run_id}
-                            className="group rounded-xl border border-border bg-card p-4 cursor-pointer transition-all hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5"
+                            className="group rounded-xl border border-border bg-card p-4 cursor-pointer transition-all hover:border-primary/30"
                             onClick={() => router.push(`/pipelines/${run.run_id}`)}
                         >
                             <div className="flex items-start justify-between gap-2 mb-3">

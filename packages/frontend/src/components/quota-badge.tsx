@@ -14,7 +14,7 @@ export function QuotaBadge({ className }: QuotaBadgeProps) {
     if (isLoading || !usage) {
         return (
             <div className={cn('flex items-center gap-2 text-sm', className)}>
-                <div className="h-4 w-20 rounded bg-muted/20 animate-pulse" />
+                <div className="h-4 w-20 rounded bg-muted/20 animate-pulse motion-reduce:animate-none" />
             </div>
         );
     }

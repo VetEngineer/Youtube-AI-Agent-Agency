@@ -37,12 +37,12 @@ export default function Home() {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <div className="h-9 w-40 rounded bg-muted/20 animate-pulse" />
-          <div className="h-10 w-36 rounded bg-muted/20 animate-pulse" />
+          <div className="h-9 w-40 rounded bg-muted/20 animate-pulse motion-reduce:animate-none" />
+          <div className="h-10 w-36 rounded bg-muted/20 animate-pulse motion-reduce:animate-none" />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 rounded-xl bg-muted/20 animate-pulse" />
+            <div key={i} className="h-32 rounded-xl bg-muted/20 animate-pulse motion-reduce:animate-none" />
           ))}
         </div>
       </div>
@@ -110,10 +110,7 @@ export default function Home() {
         <div className="rounded-xl border border-border bg-card text-card-foreground shadow-sm">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
             <h3 className="text-sm font-medium">Active</h3>
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
-            </span>
+            <span className="inline-flex rounded-full h-3 w-3 bg-emerald-500" />
           </div>
           <div className="p-6 pt-0">
             <div className="tabular-nums text-3xl font-bold">{stats.active_runs}</div>

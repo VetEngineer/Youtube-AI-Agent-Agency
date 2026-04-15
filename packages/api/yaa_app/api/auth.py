@@ -312,8 +312,16 @@ async def require_admin_scope(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # JWT 인증 사용자는 자기 workspace에 대해 admin 권한을 가짐
+    # JWT 인증 사용자는 workspace 소유자일 때만 admin 권한
     if ctx.auth_method == "jwt":
+        if ctx.workspace_id and ctx.user_id:
+            ws_repo = WorkspaceRepository(session)
+            ws = await ws_repo.get(ctx.workspace_id)
+            if ws is None or ws.owner_id != ctx.user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="워크스페이스 관리자 권한이 없습니다.",
+                )
         request.state.auth_context = ctx
         return None
 

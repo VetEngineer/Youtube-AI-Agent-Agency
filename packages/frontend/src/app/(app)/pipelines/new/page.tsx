@@ -190,6 +190,7 @@ export default function PipelineNewPage() {
                     </div>
 
                     <div className="flex items-start gap-2">
+                        {/* TODO: Replace with shadcn/ui Checkbox component once installed (npx shadcn@latest add checkbox) */}
                         <input
                             type="checkbox"
                             id="dry_run"

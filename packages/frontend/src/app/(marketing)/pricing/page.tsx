@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const plans = [
     {
@@ -81,10 +82,10 @@ export default function PricingPage() {
                     <Badge variant="secondary" className="mb-4">
                         요금제
                     </Badge>
-                    <h1 className="mb-4 text-4xl font-bold tracking-tight">
+                    <h1 className="mb-4 text-4xl font-bold text-balance">
                         필요에 맞는 플랜을 선택하세요
                     </h1>
-                    <p className="mx-auto max-w-xl text-lg text-muted-foreground">
+                    <p className="mx-auto max-w-xl text-lg text-pretty text-muted-foreground">
                         무료 플랜으로 시작하고, 필요할 때 업그레이드하세요.
                         모든 플랜에 14일 무료 체험이 포함됩니다.
                     </p>
@@ -95,22 +96,18 @@ export default function PricingPage() {
                     {plans.map((plan) => (
                         <Card
                             key={plan.name}
-                            className={
-                                plan.highlighted
-                                    ? 'relative ring-2 ring-primary/40 shadow-lg shadow-primary/10 glass-card'
-                                    : 'glass-card glass-card-hover'
-                            }
+                            className={cn("glass-card", plan.highlighted ? "relative ring-2 ring-primary/40 shadow-lg" : "glass-card-hover")}
                         >
                             {plan.highlighted && (
                                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                    <Badge className="glow-red">인기</Badge>
+                                    <Badge>인기</Badge>
                                 </div>
                             )}
                             <CardHeader>
                                 <CardTitle className="text-xl">{plan.name}</CardTitle>
                                 <CardDescription>{plan.description}</CardDescription>
                                 <div className="mt-4">
-                                    <span className="text-4xl font-bold">
+                                    <span className="text-4xl font-bold tabular-nums">
                                         {plan.price === '0' ? '무료' : `\u20A9${plan.price}`}
                                     </span>
                                     {plan.period && (
@@ -172,7 +169,7 @@ export default function PricingPage() {
                                     <Button
                                         asChild
                                         variant={plan.variant}
-                                        className={`w-full${plan.highlighted ? ' glow-red' : ''}`}
+                                        className={cn("w-full")}
                                     >
                                         <Link href="/login">{plan.cta}</Link>
                                     </Button>
@@ -184,7 +181,7 @@ export default function PricingPage() {
 
                 {/* Feature Comparison Table */}
                 <div className="mt-20">
-                    <h2 className="mb-8 text-center text-2xl font-bold tracking-tight">
+                    <h2 className="mb-8 text-center text-2xl font-bold text-balance">
                         상세 기능 비교
                     </h2>
                     <div className="overflow-x-auto rounded-xl border">

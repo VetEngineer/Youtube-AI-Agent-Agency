@@ -15,8 +15,8 @@ class PipelineRunRequest(BaseModel):
     """파이프라인 실행 요청."""
 
     channel_id: str = Field(..., description="채널 ID")
-    topic: str = Field(..., description="콘텐츠 주제")
-    brand_name: str = Field("", description="브랜드명 (선택)")
+    topic: str = Field(..., max_length=500, description="콘텐츠 주제 (최대 500자)")
+    brand_name: str = Field("", max_length=200, description="브랜드명 (선택, 최대 200자)")
     dry_run: bool = Field(False, description="실제 업로드 건너뜀")
 
 

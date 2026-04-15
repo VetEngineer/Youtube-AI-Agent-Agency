@@ -157,12 +157,12 @@ export function AppSidebar() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuButton className="h-10">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                    <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
                       {session?.user?.image ? (
                         <img
                           src={session.user.image}
                           alt={displayName}
-                          className="h-6 w-6 rounded-full object-cover"
+                          className="size-6 rounded-full object-cover"
                         />
                       ) : (
                         avatarFallback
@@ -174,7 +174,7 @@ export function AppSidebar() {
                         <span className="truncate text-xs text-muted-foreground">{displayEmail}</span>
                       )}
                     </div>
-                    <ChevronUp className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+                    <ChevronUp className="ml-auto size-4 shrink-0 opacity-50" />
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="top" align="start" className="w-56">
@@ -187,7 +187,7 @@ export function AppSidebar() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/settings" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
+                      <User className="mr-2 size-4" />
                       프로필
                     </Link>
                   </DropdownMenuItem>
@@ -201,7 +201,7 @@ export function AppSidebar() {
                       signOut({ callbackUrl: "/login" });
                     }}
                   >
-                    <LogOut className="mr-2 h-4 w-4" />
+                    <LogOut className="mr-2 size-4" />
                     로그아웃
                   </DropdownMenuItem>
                 </DropdownMenuContent>

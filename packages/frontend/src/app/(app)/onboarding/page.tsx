@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,13 +35,14 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
                 return (
                     <div key={step} className="flex items-center gap-2">
                         <div
-                            className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                            className={cn(
+                                "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium",
                                 isActive
                                     ? 'bg-primary text-primary-foreground'
                                     : isCompleted
                                       ? 'bg-primary/20 text-primary'
                                       : 'bg-muted text-muted-foreground'
-                            }`}
+                            )}
                         >
                             {isCompleted ? (
                                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -52,9 +54,10 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
                         </div>
                         {step < TOTAL_STEPS && (
                             <div
-                                className={`h-px w-12 transition-colors ${
+                                className={cn(
+                                    "h-px w-12",
                                     isCompleted ? 'bg-primary' : 'bg-muted'
-                                }`}
+                                )}
                             />
                         )}
                     </div>

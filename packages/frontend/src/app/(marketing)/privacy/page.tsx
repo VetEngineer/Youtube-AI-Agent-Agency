@@ -3,7 +3,7 @@ import Link from 'next/link';
 export default function PrivacyPage() {
     return (
         <div className="mx-auto max-w-3xl px-6 py-16">
-            <h1 className="mb-2 text-3xl font-bold tracking-tight">개인정보처리방침</h1>
+            <h1 className="mb-2 text-3xl font-bold text-balance">개인정보처리방침</h1>
             <p className="mb-10 text-sm text-muted-foreground">최종 수정일: 2026년 1월 1일</p>
 
             <div className="prose prose-invert max-w-none space-y-8 text-sm leading-relaxed text-muted-foreground">
